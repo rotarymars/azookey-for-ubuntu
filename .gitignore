@@ -1,0 +1,16 @@
+# SwiftPM
+/.build/
+/.swiftpm/
+Package.resolved.bak
+
+# Third-party sources and build trees fetched by scripts/
+/.deps/
+
+# Build outputs (llama.cpp libraries, downloaded models, packages)
+/build/
+*.deb
+
+# Editors
+.vscode/
+.idea/
+*.swp
