@@ -1,0 +1,11 @@
+// Adapted from azooKey-Desktop (https://github.com/azooKey/azooKey-Desktop),
+// Core/Sources/Core/InputUtils/InputLanguage.swift at b7ec0e4f27cf19d6a3aefa77d4b5ea7f2ebe5376.
+// Copyright (c) 2025 Miwa Keita. MIT License; see THIRD_PARTY_NOTICES.md.
+// Unmodified.
+
+import Foundation
+
+public enum InputLanguage: Codable, Sendable, Equatable, Hashable {
+    case japanese
+    case english
+}

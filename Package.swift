@@ -31,11 +31,27 @@ let package = Package(
         ),
     ],
     targets: [
+        // Input logic: azooKey-Desktop's state machine (Upstream/) plus the
+        // Linux key table, settings and session management. No IBus code.
+        .target(
+            name: "AzooKeyCore",
+            dependencies: [
+                .product(name: "KanaKanjiConverterModuleWithDefaultDictionary", package: "AzooKeyKanaKanjiConverter"),
+                .product(name: "SwiftUtils", package: "AzooKeyKanaKanjiConverter"),
+            ],
+            swiftSettings: cxxInterop
+        ),
         .executableTarget(
             name: "azookey-cli",
             dependencies: [
                 .product(name: "KanaKanjiConverterModuleWithDefaultDictionary", package: "AzooKeyKanaKanjiConverter"),
             ],
+            swiftSettings: cxxInterop,
+            linkerSettings: llamaLinkerSettings
+        ),
+        .testTarget(
+            name: "AzooKeyCoreTests",
+            dependencies: ["AzooKeyCore"],
             swiftSettings: cxxInterop,
             linkerSettings: llamaLinkerSettings
         ),

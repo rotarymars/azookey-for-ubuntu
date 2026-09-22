@@ -1,0 +1,74 @@
+import Foundation
+
+/// File locations, following the XDG base directory spec.
+///
+/// Installed layout (see Makefile):
+///   /usr/lib/ibus-azookey/ibus-engine-azookey       the engine
+///   /usr/lib/ibus-azookey/*.resources               dictionaries (SwiftPM bundles)
+///   /usr/lib/ibus-azookey/lib/                      llama.cpp libraries
+///   /usr/share/ibus-azookey/models/zenz-v3.2-*/     Zenzai models
+public enum Paths {
+    static let appName = "ibus-azookey"
+
+    private static var environment: [String: String] {
+        ProcessInfo.processInfo.environment
+    }
+
+    private static func xdgDirectory(_ variable: String, fallback: String) -> URL {
+        if let value = environment[variable], value.hasPrefix("/") {
+            return URL(fileURLWithPath: value, isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(fallback, isDirectory: true)
+    }
+
+    /// `$XDG_CONFIG_HOME/ibus-azookey`
+    public static var configDirectory: URL {
+        if let override = environment["AZOOKEY_IBUS_CONFIG_DIR"] {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+        return xdgDirectory("XDG_CONFIG_HOME", fallback: ".config").appendingPathComponent(appName, isDirectory: true)
+    }
+
+    /// `$XDG_DATA_HOME/ibus-azookey`
+    public static var dataDirectory: URL {
+        if let override = environment["AZOOKEY_IBUS_DATA_DIR"] {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+        return xdgDirectory("XDG_DATA_HOME", fallback: ".local/share").appendingPathComponent(appName, isDirectory: true)
+    }
+
+    public static var settingsFile: URL {
+        configDirectory.appendingPathComponent("config.json", isDirectory: false)
+    }
+
+    /// Learning data written by the converter.
+    public static var memoryDirectory: URL {
+        dataDirectory.appendingPathComponent("memory", isDirectory: true)
+    }
+
+    /// `/usr/share/ibus-azookey` when installed, derived from the executable's
+    /// location so a staged tree under build/ behaves like the installed one.
+    public static var sharedDataDirectory: URL {
+        if let override = environment["AZOOKEY_IBUS_SHARE_DIR"] {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+        let executableDirectory = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
+        return executableDirectory
+            .deletingLastPathComponent()  // lib
+            .deletingLastPathComponent()  // prefix
+            .appendingPathComponent("share", isDirectory: true)
+            .appendingPathComponent(appName, isDirectory: true)
+    }
+
+    /// Directory holding `ggml-model-Q5_K_M.gguf` for the given model variant.
+    public static func modelDirectory(for model: Settings.ZenzaiModel) -> URL {
+        if let override = environment["AZOOKEY_IBUS_MODEL_DIR"] {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+        return sharedDataDirectory
+            .appendingPathComponent("models", isDirectory: true)
+            .appendingPathComponent(model.directoryName, isDirectory: true)
+    }
+
+    public static let modelFileName = "ggml-model-Q5_K_M.gguf"
+}
