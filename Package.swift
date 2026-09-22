@@ -31,6 +31,22 @@ let package = Package(
         ),
     ],
     targets: [
+        .systemLibrary(
+            name: "CIBus",
+            pkgConfig: "ibus-1.0",
+            providers: [.apt(["libibus-1.0-dev"])]
+        ),
+        // The IBusEngine GObject subclass; forwards everything to Swift.
+        .target(
+            name: "AzooKeyIBusShim",
+            dependencies: ["CIBus"]
+        ),
+        .executableTarget(
+            name: "ibus-engine-azookey",
+            dependencies: ["AzooKeyCore", "AzooKeyIBusShim"],
+            swiftSettings: cxxInterop,
+            linkerSettings: llamaLinkerSettings
+        ),
         // Input logic: azooKey-Desktop's state machine (Upstream/) plus the
         // Linux key table, settings and session management. No IBus code.
         .target(
@@ -44,6 +60,7 @@ let package = Package(
         .executableTarget(
             name: "azookey-cli",
             dependencies: [
+                "AzooKeyCore",
                 .product(name: "KanaKanjiConverterModuleWithDefaultDictionary", package: "AzooKeyKanaKanjiConverter"),
             ],
             swiftSettings: cxxInterop,

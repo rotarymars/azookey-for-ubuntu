@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ibus-azookey: an unofficial Linux port of the azooKey Japanese input method. -->
+<component>
+  <name>org.freedesktop.IBus.AzooKey</name>
+  <description>azooKey Japanese input (unofficial Linux port)</description>
+  <exec>@LIBDIR@/ibus-engine-azookey --ibus</exec>
+  <version>@VERSION@</version>
+  <author>rotarymars</author>
+  <license>MIT</license>
+  <textdomain>ibus-azookey</textdomain>
+  <engines>
+    <engine>
+      <name>azookey</name>
+      <language>ja</language>
+      <license>MIT</license>
+      <author>rotarymars</author>
+      <icon>@DATADIR@/icons/ibus-azookey.svg</icon>
+      <layout>default</layout>
+      <longname>azooKey</longname>
+      <description>Japanese input with azooKey's converter and the Zenzai neural model (unofficial)</description>
+      <rank>50</rank>
+      <symbol>あ</symbol>
+      <icon_prop_key>InputMode</icon_prop_key>
+      <setup>@LIBDIR@/ibus-setup-azookey</setup>
+    </engine>
+  </engines>
+</component>

@@ -46,13 +46,18 @@ public enum Paths {
         dataDirectory.appendingPathComponent("memory", isDirectory: true)
     }
 
+    /// `/usr/lib/ibus-azookey` when installed (from /proc/self/exe).
+    public static var executableDirectory: URL {
+        let executable = Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])
+        return executable.resolvingSymlinksInPath().deletingLastPathComponent()
+    }
+
     /// `/usr/share/ibus-azookey` when installed, derived from the executable's
     /// location so a staged tree under build/ behaves like the installed one.
     public static var sharedDataDirectory: URL {
         if let override = environment["AZOOKEY_IBUS_SHARE_DIR"] {
             return URL(fileURLWithPath: override, isDirectory: true)
         }
-        let executableDirectory = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
         return executableDirectory
             .deletingLastPathComponent()  // lib
             .deletingLastPathComponent()  // prefix

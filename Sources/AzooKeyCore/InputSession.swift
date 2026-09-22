@@ -141,7 +141,8 @@ public final class InputSession {
         self.manager.delegate = textContext
     }
 
-    isolated deinit {
+    /// Releases the conversion session on the shared converter.
+    public func close() {
         host.converter.removeSession(sessionID)
     }
 

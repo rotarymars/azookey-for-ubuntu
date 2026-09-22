@@ -1,0 +1,5 @@
+module CIBus [system] {
+    header "shim.h"
+    link "ibus-1.0"
+    export *
+}
