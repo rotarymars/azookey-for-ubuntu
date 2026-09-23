@@ -1,7 +1,9 @@
 // Adapted from azooKey-Desktop (https://github.com/azooKey/azooKey-Desktop),
 // Core/Sources/Core/InputUtils/SegmentsManager.swift at b7ec0e4f27cf19d6a3aefa77d4b5ea7f2ebe5376.
 // Copyright (c) 2025 Miwa Keita. MIT License; see THIRD_PARTY_NOTICES.md.
-// Changes: version string reported to the converter.
+// Changes: version string reported to the converter; the emoji TextReplacer is
+// built once instead of on every request (it re-parsed the emoji dictionary per
+// keystroke, about 80 ms each on a Ryzen 7 7735HS).
 
 import Foundation
 import KanaKanjiConverterModuleWithDefaultDictionary
@@ -177,6 +179,10 @@ public final class SegmentsManager {
         return Bundle.main.bundleURL.appendingPathComponent("Contents/Resources", isDirectory: true)
     }
 
+    /// TextReplacer parses the whole emoji dictionary in its initializer, so
+    /// build it once instead of for every conversion request (every keystroke).
+    private lazy var textReplacer: TextReplacer = .withDefaultEmojiDictionary()
+
     private var metadata: ConvertRequestOptions.Metadata {
         .init(versionString: "ibus-azookey \(PackageMetadata.version)")
     }
@@ -197,7 +203,7 @@ public final class SegmentsManager {
             learningType: Config.Learning().value.learningType,
             memoryDirectoryURL: self.azooKeyMemoryDir,
             sharedContainerURL: CompiledUserDictionaryStore.directoryURL(memoryDirectoryURL: self.azooKeyMemoryDir),
-            textReplacer: .withDefaultEmojiDictionary(),
+            textReplacer: self.textReplacer,
             specialCandidateProviders: KanaKanjiConverter.defaultSpecialCandidateProviders,
             zenzaiMode: self.zenzaiMode(
                 leftSideContext: leftSideContext,
