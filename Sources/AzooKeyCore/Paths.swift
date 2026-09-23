@@ -46,6 +46,12 @@ public enum Paths {
         dataDirectory.appendingPathComponent("memory", isDirectory: true)
     }
 
+    /// Created by the settings window to ask the engine to reset learning;
+    /// the engine handles it the next time a text field gets focus.
+    public static var resetLearningRequestFile: URL {
+        dataDirectory.appendingPathComponent("reset-learning-request", isDirectory: false)
+    }
+
     /// `/usr/lib/ibus-azookey` when installed (from /proc/self/exe).
     public static var executableDirectory: URL {
         let executable = Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])

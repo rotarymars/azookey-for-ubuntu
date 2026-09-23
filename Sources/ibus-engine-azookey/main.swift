@@ -2,12 +2,22 @@ import AzooKeyCore
 import AzooKeyIBusShim
 import Foundation
 
-// ibus-engine-azookey [--ibus]
-//   --ibus  started by ibus-daemon from the component XML. Without it the
-//           engine registers itself with the running daemon (development).
+// ibus-engine-azookey [--ibus | --dump-settings | --version]
+//   --ibus           started by ibus-daemon from the component XML. Without it
+//                    the engine registers itself with the running daemon
+//                    (development).
+//   --dump-settings  print the effective settings as JSON (used by the
+//                    settings window, so defaults live in one place)
 
 if CommandLine.arguments.contains("--version") {
     print("ibus-engine-azookey \(PackageMetadata.version)")
+    exit(0)
+}
+if CommandLine.arguments.contains("--dump-settings") {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let data = try encoder.encode(SettingsStore().settings)
+    print(String(decoding: data, as: UTF8.self))
     exit(0)
 }
 

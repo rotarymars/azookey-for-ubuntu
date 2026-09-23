@@ -52,6 +52,7 @@ stage: engine model
 	install -d $(STAGE)$(LIBDIR)/lib $(STAGE)$(DATADIR)/models $(STAGE)$(DATADIR)/icons \
 		$(STAGE)$(COMPONENTDIR) $(STAGE)$(DOCDIR)/licenses
 	install -m 755 $(BIN)/ibus-engine-azookey $(STAGE)$(LIBDIR)/
+	install -m 755 tools/ibus-setup-azookey $(STAGE)$(LIBDIR)/
 	strip --strip-unneeded $(STAGE)$(LIBDIR)/ibus-engine-azookey
 	cp -r $(BIN)/*.resources $(STAGE)$(LIBDIR)/
 	install -m 644 build/lib/*.so $(STAGE)$(LIBDIR)/lib/

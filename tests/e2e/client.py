@@ -5,8 +5,11 @@ Started by run.sh against a private ibus-daemon (IBUS_ADDRESS is set there).
 Prints what the engine sends back and exits non-zero on the first failure.
 """
 
+import json
+import os
 import sys
 import time
+from pathlib import Path
 
 import gi
 
@@ -180,6 +183,68 @@ def main():
     client.pump(0.2)
     handled, _ = client.press("a")
     check("typing works after refocus", handled and client.preedit == "あ", client.preedit)
+    client.press("Escape")
+
+    config = Path(os.environ["XDG_CONFIG_HOME"]) / "ibus-azookey" / "config.json"
+    config.parent.mkdir(parents=True, exist_ok=True)
+
+    def apply_config(settings):
+        """What the settings window does: write config.json, then the engine
+        reloads it when a text field gets focus again."""
+        config.write_text(json.dumps(settings))
+        client.context.focus_out()
+        client.pump(0.2)
+        client.context.focus_in()
+        client.pump(0.3)
+
+    def conversion_of(reading):
+        client.type(reading)
+        client.press("space")
+        result = client.preedit
+        client.press("Escape")
+        return result
+
+    def list_position(reading, word):
+        client.type(reading)
+        client.press("space")
+        client.press("space")
+        position = client.candidates.index(word) if word in client.candidates else None
+        client.press("Escape")
+        return position
+
+    # Learning. With Zenzai the model has the final say on the top choice
+    # (azooKey gives learned words a boost, not a veto), so check that the
+    # chosen word moves up; without Zenzai it becomes the first conversion.
+    client.type("kisha")
+    client.press("space")
+    first = client.preedit
+    client.press("space")
+    other = next((c for c in client.candidates if c in ("汽車", "帰社", "貴社") and c != first), None)
+    check("an alternative candidate is offered", other is not None, " ".join(client.candidates[:8]))
+    before = client.candidates.index(other) if other else None
+    client.press(str(before + 1) if other else "Escape")
+    check("the alternative is committed", client.take_committed() == other, other or "")
+    after = list_position("kisha", other)
+    check("learning moves the chosen word up (Zenzai on)", after is not None and before is not None and after < before,
+          f"position {before} -> {after}")
+    apply_config({"zenzaiEnabled": False})
+    zenzai = client.properties.get("Zenzai")
+    check("status menu reflects config.json", zenzai is not None and zenzai.get_state() == IBus.PropState.UNCHECKED)
+    learned = conversion_of("kisha")
+    check("learned word is the first conversion (Zenzai off)", learned == other, f"{first} -> {learned}")
+
+    apply_config({"liveConversion": True})
+    client.type("kyouhaiitenki")
+    check("live conversion from config.json", client.preedit == "今日はいい天気", client.preedit)
+    client.press("Escape")
+
+    reset_request = Path(os.environ["XDG_DATA_HOME"]) / "ibus-azookey" / "reset-learning-request"
+    reset_request.parent.mkdir(parents=True, exist_ok=True)
+    reset_request.touch()
+    apply_config({"zenzaiEnabled": False})
+    check("learning reset request is handled", not reset_request.exists())
+    forgotten = conversion_of("kisha")
+    check("reset forgets learned words", forgotten != other, f"{forgotten}")
 
     print(f"{failures} failure(s)")
     return 1 if failures else 0

@@ -1,0 +1,260 @@
+#!/usr/bin/python3
+"""Settings window for ibus-azookey, an unofficial IBus port of azooKey.
+
+Every change is written to ~/.config/ibus-azookey/config.json right away; the
+engine re-reads the file the next time a text field gets focus. GNOME opens
+this from Settings > Keyboard > Input Sources > azooKey > Preferences, and the
+engine's status menu has a "設定…" item for it.
+
+--self-test builds the window without showing it and checks that changes are
+saved (needs a display, writes into a temporary directory).
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Adw, Gio, Gtk  # noqa: E402
+
+HERE = Path(__file__).resolve().parent
+ENGINE = HERE / "ibus-engine-azookey"
+
+# (value stored in config.json, label shown)
+LEARNING = [
+    ("inputAndOutput", "学習する"),
+    ("onlyOutput", "学習結果を使うだけ (更新しない)"),
+    ("nothing", "学習しない"),
+]
+INPUT_STYLES = [
+    ("roman", "ローマ字入力"),
+    ("azik", "AZIK"),
+    ("kanaUS", "かな入力 (US配列)"),
+    ("kanaJIS", "かな入力 (JIS配列)"),
+]
+PUNCTUATION = [
+    ("kutenAndToten", "。、"),
+    ("kutenAndComma", "。，"),
+    ("periodAndToten", "．、"),
+    ("periodAndComma", "．，"),
+]
+MODELS = [
+    ("small", "zenz-v3.2-small (高精度)"),
+    ("xsmall", "zenz-v3.2-xsmall (軽量・高速)"),
+]
+
+
+def xdg_directory(override, variable, fallback):
+    """Mirrors Paths.swift so both sides agree on locations."""
+    if os.environ.get(override):
+        return Path(os.environ[override])
+    base = os.environ.get(variable, "")
+    return (Path(base) if base.startswith("/") else Path.home() / fallback) / "ibus-azookey"
+
+
+def config_file():
+    return xdg_directory("AZOOKEY_IBUS_CONFIG_DIR", "XDG_CONFIG_HOME", ".config") / "config.json"
+
+
+def reset_request_file():
+    return xdg_directory("AZOOKEY_IBUS_DATA_DIR", "XDG_DATA_HOME", ".local/share") / "reset-learning-request"
+
+
+def models_directory():
+    share = os.environ.get("AZOOKEY_IBUS_SHARE_DIR")
+    return (Path(share) if share else HERE.parent.parent / "share" / "ibus-azookey") / "models"
+
+
+def load_settings():
+    """The effective settings, defaults included, as the engine sees them."""
+    try:
+        result = subprocess.run(
+            [str(ENGINE), "--dump-settings"], capture_output=True, text=True, timeout=10, check=True
+        )
+        return json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
+        print(f"ibus-setup-azookey: cannot ask {ENGINE} for settings: {error}", file=sys.stderr)
+    try:
+        return json.loads(config_file().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_settings(settings):
+    path = config_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(settings, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+class SettingsWindow(Adw.ApplicationWindow):
+    def __init__(self, application):
+        super().__init__(application=application, title="azooKey の設定", default_width=600, default_height=760)
+        self.settings = load_settings()
+        self.rows = {}
+
+        page = Adw.PreferencesPage()
+
+        learning = Adw.PreferencesGroup(
+            title="学習",
+            description="選んだ変換候補を覚えて、次から上位に出します (Learning)",
+        )
+        learning.add(self.combo_row("learning", "学習モード", LEARNING))
+        reset_row = Adw.ActionRow(title="学習データをリセット", subtitle="これまでの学習内容を消去します")
+        reset_button = Gtk.Button(label="リセット…", valign=Gtk.Align.CENTER)
+        reset_button.add_css_class("destructive-action")
+        reset_button.connect("clicked", self.on_reset_clicked)
+        reset_row.add_suffix(reset_button)
+        learning.add(reset_row)
+        page.add(learning)
+
+        conversion = Adw.PreferencesGroup(title="変換", description="Conversion")
+        conversion.add(self.switch_row(
+            "liveConversion", "ライブ変換", "入力中に変換結果を表示する。オフならスペースで変換 (Live conversion)"))
+        conversion.add(self.combo_row("inputStyle", "入力方式", INPUT_STYLES))
+        conversion.add(self.combo_row("punctuationStyle", "句読点", PUNCTUATION))
+        conversion.add(self.switch_row(
+            "typeHalfSpace", "スペースを半角で入力", "オフなら全角スペース。Shift+スペースで反対の幅"))
+        conversion.add(self.switch_row(
+            "typeBackSlash", "バックスラッシュキーで \\ を入力", "オフなら ¥ を入力"))
+        conversion.add(self.spin_row("candidatePageSize", "1ページの候補数", 1, 10))
+        page.add(conversion)
+
+        zenzai = Adw.PreferencesGroup(
+            title="Zenzai (ニューラルかな漢字変換)",
+            description="zenzモデルで文脈に合った変換をします。CPUで動作します",
+        )
+        zenzai.add(self.switch_row("zenzaiEnabled", "Zenzai を使う", "オフにすると辞書だけで変換します"))
+        installed = [model for model in MODELS
+                     if (models_directory() / f"zenz-v3.2-{model[0]}" / "ggml-model-Q5_K_M.gguf").exists()]
+        zenzai.add(self.combo_row("zenzaiModel", "モデル", installed or MODELS))
+        zenzai.add(self.spin_row(
+            "zenzaiInferenceLimit", "推論回数の上限", 1, 20, "大きいほど精度が上がり、遅くなります (既定: 5)"))
+        zenzai.add(self.entry_row("zenzaiProfile", "プロフィール (例: エンジニア/Swift開発者)"))
+        zenzai.add(self.switch_row(
+            "useSurroundingText", "前後の文章を文脈に使う", "カーソルの前後にある文章を変換の手がかりにします"))
+        page.add(zenzai)
+
+        about = Adw.PreferencesGroup(title="このソフトウェアについて")
+        about.add(Adw.ActionRow(
+            title="ibus-azookey (非公式)",
+            subtitle="AzooKeyKanaKanjiConverter と zenz-v3.2 モデルを使っています。"
+                     "ライセンス: /usr/share/doc/ibus-azookey",
+        ))
+        page.add(about)
+
+        self.toasts = Adw.ToastOverlay(child=page)
+        toolbar = Adw.ToolbarView()
+        toolbar.add_top_bar(Adw.HeaderBar())
+        toolbar.set_content(self.toasts)
+        self.set_content(toolbar)
+
+    # Rows are connected after their initial value is set, so building the
+    # window never writes the file.
+
+    def switch_row(self, key, title, subtitle=""):
+        row = Adw.SwitchRow(title=title, subtitle=subtitle, active=bool(self.settings.get(key)))
+        row.connect("notify::active", lambda widget, _: self.set_value(key, widget.get_active()))
+        self.rows[key] = row
+        return row
+
+    def combo_row(self, key, title, choices):
+        values = [value for value, _ in choices]
+        row = Adw.ComboRow(title=title, model=Gtk.StringList.new([label for _, label in choices]))
+        if self.settings.get(key) in values:
+            row.set_selected(values.index(self.settings[key]))
+        row.connect("notify::selected", lambda widget, _: self.set_value(key, values[widget.get_selected()]))
+        self.rows[key] = row
+        return row
+
+    def spin_row(self, key, title, lower, upper, subtitle=""):
+        row = Adw.SpinRow.new_with_range(lower, upper, 1)
+        row.set_title(title)
+        row.set_subtitle(subtitle)
+        row.set_value(self.settings.get(key, lower))
+        row.connect("notify::value", lambda widget, _: self.set_value(key, int(widget.get_value())))
+        self.rows[key] = row
+        return row
+
+    def entry_row(self, key, title):
+        row = Adw.EntryRow(title=title, show_apply_button=True, text=self.settings.get(key, ""))
+        row.connect("apply", lambda widget: self.set_value(key, widget.get_text().strip()))
+        self.rows[key] = row
+        return row
+
+    def set_value(self, key, value):
+        if self.settings.get(key) == value:
+            return
+        self.settings[key] = value
+        try:
+            save_settings(self.settings)
+        except OSError as error:
+            self.toasts.add_toast(Adw.Toast(title=f"保存できませんでした: {error}"))
+
+    def on_reset_clicked(self, _button):
+        dialog = Adw.AlertDialog(
+            heading="学習データをリセットしますか？",
+            body="これまでに覚えた変換候補の順位がすべて消えます。元には戻せません。",
+        )
+        dialog.add_response("cancel", "キャンセル")
+        dialog.add_response("reset", "リセット")
+        dialog.set_response_appearance("reset", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", self.on_reset_response)
+        dialog.present(self)
+
+    def on_reset_response(self, _dialog, response):
+        if response != "reset":
+            return
+        self.request_learning_reset()
+        self.toasts.add_toast(Adw.Toast(title="次に文字を入力するときに学習データがリセットされます"))
+
+    @staticmethod
+    def request_learning_reset():
+        request = reset_request_file()
+        request.parent.mkdir(parents=True, exist_ok=True)
+        request.touch()
+
+
+def self_test(application):
+    window = SettingsWindow(application)
+    assert not config_file().exists(), "building the window must not write settings"
+    window.rows["learning"].set_selected(2)
+    window.rows["liveConversion"].set_active(not window.rows["liveConversion"].get_active())
+    window.rows["zenzaiInferenceLimit"].set_value(3)
+    saved = json.loads(config_file().read_text(encoding="utf-8"))
+    assert saved["learning"] == "nothing", saved
+    assert saved["zenzaiInferenceLimit"] == 3, saved
+    SettingsWindow.request_learning_reset()
+    assert reset_request_file().exists()
+    print(f"self-test ok: {len(window.rows)} settings rows saved to config.json")
+    shutil.rmtree(config_file().parent)
+    application.quit()
+
+
+def main():
+    application = Adw.Application(
+        application_id="org.freedesktop.IBus.AzooKey.Setup",
+        flags=Gio.ApplicationFlags.NON_UNIQUE if "--self-test" in sys.argv else Gio.ApplicationFlags.DEFAULT_FLAGS,
+    )
+    if "--self-test" in sys.argv:
+        directory = tempfile.mkdtemp(prefix="azookey-setup-test-")
+        os.environ["AZOOKEY_IBUS_CONFIG_DIR"] = directory
+        os.environ["AZOOKEY_IBUS_DATA_DIR"] = directory
+        application.connect("activate", self_test)
+    else:
+        application.connect("activate", lambda app: (app.props.active_window or SettingsWindow(app)).present())
+    return application.run([sys.argv[0]])
+
+
+if __name__ == "__main__":
+    sys.exit(main())

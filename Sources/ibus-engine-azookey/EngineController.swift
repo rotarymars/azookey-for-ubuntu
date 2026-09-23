@@ -25,10 +25,17 @@ final class App {
         controllers[ObjectIdentifier(controller)] = nil
     }
 
-    /// Picks up edits from the settings window.
+    /// Picks up edits and requests from the settings window.
     func reloadSettingsIfChanged() {
         if settingsStore.reloadIfChanged() {
             settingsDidChange()
+        }
+        let resetRequest = Paths.resetLearningRequestFile
+        if FileManager.default.fileExists(atPath: resetRequest.path) {
+            try? FileManager.default.removeItem(at: resetRequest)
+            cancelLearningCommit()
+            host.resetLearningData()
+            Log.info("learning data reset")
         }
     }
 
@@ -60,11 +67,15 @@ final class App {
     }
 
     func commitLearningData() {
+        cancelLearningCommit()
+        host.commitLearningData()
+    }
+
+    private func cancelLearningCommit() {
         if learningCommitSource != 0 {
             azk_source_remove(learningCommitSource)
             learningCommitSource = 0
         }
-        host.commitLearningData()
     }
 
     var setupCommand: String? {

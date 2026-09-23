@@ -24,6 +24,13 @@ public final class ConverterHost {
 
     public func resetLearningData() {
         converter.resetMemory()
+        // resetMemory() only deletes files once a conversion has told the
+        // converter where they live, so remove them here as well.
+        let fileManager = FileManager.default
+        let files = (try? fileManager.contentsOfDirectory(at: Paths.memoryDirectory, includingPropertiesForKeys: nil)) ?? []
+        for file in files where file.lastPathComponent != "user_dictionary" {
+            try? fileManager.removeItem(at: file)
+        }
     }
 
     /// The Zenzai model to use under the current settings, if it is installed.
