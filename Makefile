@@ -7,12 +7,16 @@
 #   sudo make install    copy the staged tree into $(DESTDIR)/ (no building)
 #   sudo make uninstall
 #   make deb             build a .deb from the staged tree
+#   make release         build a .deb that runs on any x86-64 CPU with AVX2
 
 VERSION      := 0.1.1
 PREFIX       ?= /usr
 DESTDIR      ?=
 MODEL        ?= small
 CONFIG       ?= release
+# 1: build llama.cpp for any x86-64-v3 CPU instead of this machine's CPU.
+LLAMA_PORTABLE ?= 0
+LLAMA_MODE   := $(if $(filter 1,$(LLAMA_PORTABLE)),portable,native)
 
 # A swift on PATH wins; otherwise the newest toolchain unpacked by
 # scripts/install-swift.sh.
@@ -24,17 +28,18 @@ COMPONENTDIR := $(PREFIX)/share/ibus/component
 DOCDIR       := $(PREFIX)/share/doc/ibus-azookey
 STAGE        := build/stage
 
-.PHONY: all llama model engine stage test e2e install uninstall deb clean check-swift
+.PHONY: all llama model engine stage test e2e install uninstall deb release clean check-swift
 
 all: stage
 
 check-swift:
 	@test -x "$(SWIFT)" || { echo "Swift 6.1+ not found; run scripts/install-swift.sh or set SWIFT=/path/to/swift" >&2; exit 1; }
 
-llama: build/lib/libllama.so
+# The marker file names the CPU target, so switching LLAMA_PORTABLE rebuilds.
+llama: build/lib/.llama-$(LLAMA_MODE)
 
-build/lib/libllama.so: scripts/build-llama.sh
-	./scripts/build-llama.sh
+build/lib/.llama-$(LLAMA_MODE): scripts/build-llama.sh
+	LLAMA_PORTABLE=$(LLAMA_PORTABLE) ./scripts/build-llama.sh
 
 model:
 	./scripts/fetch-model.sh $(MODEL)
@@ -89,6 +94,11 @@ uninstall:
 deb: stage
 	rm -f build/ibus-azookey_*.deb
 	./scripts/build-deb.sh $(VERSION) $(STAGE)
+
+# The package to publish: same as deb, but llama.cpp is built for any x86-64
+# CPU with AVX2 rather than for this machine (which may have newer instructions).
+release:
+	$(MAKE) LLAMA_PORTABLE=1 deb
 
 clean:
 	rm -rf .build build/stage build/*.deb
