@@ -45,8 +45,10 @@ make e2e    # end-to-end test through a private ibus-daemon
 - `make e2e` also puts zenz-v3.2-xsmall where the settings window saves
   downloaded models and checks that the engine switches to it, and falls back
   to the bundled model when a missing one is selected.
-- `tools/ibus-setup-azookey --self-test` checks the settings window without
-  showing it (needs a display; CI runs it under Xvfb).
+- `build/stage/usr/lib/ibus-azookey/ibus-setup-azookey --self-test` checks the
+  settings window without showing it, including the version it gets from the
+  staged engine (needs a display; CI runs it under Xvfb). The copy in `tools/`
+  passes too, without an engine next to it.
 - `AZOOKEY_IBUS_DEBUG=1 KEEP_E2E_TMP=1 make e2e` keeps the test's temporary
   directory, whose `daemon.log` has the engine's debug log with per-key timings.
 

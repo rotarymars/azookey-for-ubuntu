@@ -132,7 +132,8 @@ on first use (about 0.2 seconds).
 **Conversion feels slow.** In the settings window, lower the Zenzai inference
 limit or turn Zenzai off.
 
-**Anything else.** Please open an issue and include the log from
+**Anything else.** Please open an issue with the version (shown at the bottom
+of the settings window) and the log from
 `journalctl --user -b -u org.freedesktop.IBus.session.GNOME.service | grep ibus-azookey`.
 
 ## Updating
@@ -143,7 +144,8 @@ way as the first one. Your settings, learning data and downloaded models are
 kept.
 
 The new version starts the next time you log in, or right away after
-`ibus restart`.
+`ibus restart`. Until then, the version at the bottom of the settings window
+says that an update is waiting.
 
 ## Uninstall
 

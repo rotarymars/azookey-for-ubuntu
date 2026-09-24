@@ -18,6 +18,7 @@ saved (needs a display, writes into a temporary directory).
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -166,6 +167,30 @@ def load_settings():
         return {}
 
 
+def engine_version():
+    """The installed engine's version, like "0.1.4", or None."""
+    try:
+        result = subprocess.run(
+            [str(ENGINE), "--version"], capture_output=True, text=True, timeout=10, check=True
+        )
+        return result.stdout.split()[-1]
+    except (OSError, subprocess.SubprocessError, IndexError):
+        return None
+
+
+def outdated_engine_running(engine=ENGINE):
+    """Whether an engine started before the package was upgraded still runs.
+    Upgrading replaces the file, so the kernel shows the running one as deleted."""
+    replaced = f"{engine} (deleted)"
+    for link in Path("/proc").glob("[0-9]*/exe"):
+        try:
+            if os.readlink(link) == replaced:
+                return True
+        except OSError:  # another user's process, or it just exited
+            continue
+    return False
+
+
 def save_settings(settings):
     path = config_file()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -226,6 +251,7 @@ class SettingsWindow(Adw.ApplicationWindow):
             subtitle="AzooKeyKanaKanjiConverter と zenz-v3.2 モデルを使っています。"
                      "ライセンス: /usr/share/doc/ibus-azookey",
         ))
+        about.add(self.version_row())
         page.add(about)
 
         self.toasts = Adw.ToastOverlay(child=page)
@@ -234,6 +260,16 @@ class SettingsWindow(Adw.ApplicationWindow):
         toolbar.set_content(self.toasts)
         self.set_content(toolbar)
         self.connect("close-request", self.on_close_request)
+
+    def version_row(self):
+        version = engine_version()
+        row = Adw.ActionRow(title="バージョン")
+        self.version_label = Gtk.Label(label=version or "不明", selectable=True)
+        self.version_label.add_css_class("dim-label")
+        row.add_suffix(self.version_label)
+        if version is not None and outdated_engine_running():
+            row.set_subtitle("このバージョンに更新済みです。ログインし直すか ibus restart を実行すると切り替わります")
+        return row
 
     def on_close_request(self, _window):
         if self.cancel_download is not None:
@@ -451,7 +487,24 @@ def self_test(application):
     models.set_selected(ids.index("zenz-v3.1-small"))
     assert models.get_selected() == ids.index("zenz-v3.2-xsmall"), "a missing model must not be selected yet"
     assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
-    print(f"self-test ok: {len(window.rows)} settings rows, {len(ids)} models")
+
+    # Version row: the engine next to this script reports it (none in the source tree).
+    version = window.version_label.get_label()
+    if ENGINE.exists():
+        assert re.fullmatch(r"\d+(\.\d+)+", version), f"version row shows {version!r}"
+    # A running program whose file was replaced, as an upgrade does, counts as outdated.
+    program = Path(tempfile.mkdtemp()).resolve() / "sleep"
+    shutil.copy(shutil.which("sleep"), program)
+    process = subprocess.Popen([str(program), "30"])
+    try:
+        assert not outdated_engine_running(program)
+        program.unlink()
+        assert outdated_engine_running(program), "a replaced running program must count as outdated"
+    finally:
+        process.kill()
+        process.wait()
+        shutil.rmtree(program.parent)
+    print(f"self-test ok: {len(window.rows)} settings rows, {len(ids)} models, version {version}")
     shutil.rmtree(config_file().parent)
     application.quit()
 

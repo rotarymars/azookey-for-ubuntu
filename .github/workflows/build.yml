@@ -53,13 +53,14 @@ jobs:
       - name: Unit tests
         run: make test
 
+      - name: Build the package
+        run: make release
+
+      # The staged copy, so it asks the built engine for settings and version.
       - name: Settings window test
         env:
           GSK_RENDERER: cairo
-        run: dbus-run-session -- xvfb-run -a tools/ibus-setup-azookey --self-test
-
-      - name: Build the package
-        run: make release
+        run: dbus-run-session -- xvfb-run -a build/stage/usr/lib/ibus-azookey/ibus-setup-azookey --self-test
 
       - name: End-to-end test
         run: make e2e
