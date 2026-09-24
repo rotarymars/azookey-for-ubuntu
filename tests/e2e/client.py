@@ -94,6 +94,14 @@ class Client:
         latencies = [self.press(c)[1] for c in text]
         return latencies
 
+    def cancel(self):
+        """Esc steps back one stage (list -> conversion -> hiragana -> nothing)."""
+        for _ in range(4):
+            if not self.preedit:
+                break
+            self.press("Escape")
+        self.committed.clear()
+
     def take_committed(self):
         text = "".join(self.committed)
         self.committed.clear()
@@ -183,7 +191,7 @@ def main():
     client.pump(0.2)
     handled, _ = client.press("a")
     check("typing works after refocus", handled and client.preedit == "あ", client.preedit)
-    client.press("Escape")
+    client.cancel()
 
     config = Path(os.environ["XDG_CONFIG_HOME"]) / "ibus-azookey" / "config.json"
     config.parent.mkdir(parents=True, exist_ok=True)
@@ -201,7 +209,7 @@ def main():
         client.type(reading)
         client.press("space")
         result = client.preedit
-        client.press("Escape")
+        client.cancel()
         return result
 
     def list_position(reading, word):
@@ -209,7 +217,7 @@ def main():
         client.press("space")
         client.press("space")
         position = client.candidates.index(word) if word in client.candidates else None
-        client.press("Escape")
+        client.cancel()
         return position
 
     # Learning. With Zenzai the model has the final say on the top choice
@@ -236,7 +244,7 @@ def main():
     apply_config({"liveConversion": True})
     client.type("kyouhaiitenki")
     check("live conversion from config.json", client.preedit == "今日はいい天気", client.preedit)
-    client.press("Escape")
+    client.cancel()
 
     reset_request = Path(os.environ["XDG_DATA_HOME"]) / "ibus-azookey" / "reset-learning-request"
     reset_request.parent.mkdir(parents=True, exist_ok=True)
@@ -245,6 +253,22 @@ def main():
     check("learning reset request is handled", not reset_request.exists())
     forgotten = conversion_of("kisha")
     check("reset forgets learned words", forgotten != other, f"{forgotten}")
+
+    # Switching input sources mid-composition (Ctrl+Space in GNOME) must
+    # commit the text being typed, not drop it.
+    client.type("henkou")
+    client.context.set_engine("xkb:us::eng")
+    client.pump(0.5)
+    engine = client.context.get_engine()
+    switched_to = engine.get_name() if engine is not None else None
+    committed = client.take_committed()
+    check("switching input source commits the preedit", committed == "へんこう",
+          f"committed {committed!r}, engine {switched_to}, preedit {client.preedit!r}")
+    client.context.set_engine("azookey")
+    client.pump(0.5)
+    handled, _ = client.press("a")
+    check("typing works after switching back", handled and client.preedit == "あ", client.preedit)
+    client.cancel()
 
     print(f"{failures} failure(s)")
     return 1 if failures else 0

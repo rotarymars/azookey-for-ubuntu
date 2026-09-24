@@ -41,6 +41,8 @@ mkdir -p "$IBUS_COMPONENT_PATH" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_
 # The staged component points at /usr; aim it at the staged engine instead.
 sed "s|/usr/lib/ibus-azookey|$STAGED_PREFIX/lib/ibus-azookey|g" \
     "$STAGED_PREFIX/share/ibus/component/azookey.xml" > "$IBUS_COMPONENT_PATH/azookey.xml"
+# The keyboard-layout engines, to test switching input sources.
+cp /usr/share/ibus/component/simple.xml "$IBUS_COMPONENT_PATH/"
 
 ibus-daemon --single --panel=disable --emoji-extension=disable --config=disable \
     --cache=none --address="$IBUS_ADDRESS" --verbose > "$TMP/daemon.log" 2>&1 &

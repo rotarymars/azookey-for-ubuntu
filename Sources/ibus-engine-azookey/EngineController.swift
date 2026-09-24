@@ -46,7 +46,7 @@ final class App {
 
     private func settingsDidChange() {
         Config.settings = settingsStore.settings
-        Log.info("settings: \(settingsStore.settings)")
+        Log.info("settings reloaded")
         for controller in controllers.values {
             controller.settingsDidChange()
         }
@@ -156,8 +156,12 @@ final class EngineController {
     }
 
     func disable() {
+        // Leave the preedit alone: ibus-daemon commits it when the engine is
+        // switched away (preedit mode COMMIT), and clearing it here could race.
         session.reset()
-        render(force: true)
+        lastSnapshot = nil
+        azk_engine_hide_lookup(engine)
+        azk_engine_set_auxiliary_text(engine, nil)
         App.shared.commitLearningData()
     }
 
