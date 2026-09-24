@@ -22,17 +22,23 @@ This project is not affiliated with or endorsed by the azooKey project.
 
 ## Install
 
-1. Download `ibus-azookey_<version>_amd64.deb` from
-   [Releases](../../releases/latest).
-2. Install it and restart IBus:
+1. Add the package repository, install ibus-azookey and restart IBus:
    ```sh
-   sudo apt install ./ibus-azookey_*_amd64.deb
+   sudo wget -qO /etc/apt/keyrings/ibus-azookey.asc https://rotarymars.github.io/azookey-for-ubuntu/key.asc
+   echo "deb [signed-by=/etc/apt/keyrings/ibus-azookey.asc] https://rotarymars.github.io/azookey-for-ubuntu ./" | sudo tee /etc/apt/sources.list.d/ibus-azookey.list
+   sudo apt update
+   sudo apt install ibus-azookey
    ibus restart
    ```
-3. Open **Settings → Keyboard → Input Sources → + Add Input Source…**, search
+   New versions then come with your other updates (see [Updating](#updating)).
+   To install without adding a repository, download
+   `ibus-azookey_<version>_amd64.deb` from [Releases](../../releases/latest)
+   and run `sudo apt install ./ibus-azookey_*_amd64.deb` and `ibus restart`
+   instead; you then install each new version the same way.
+2. Open **Settings → Keyboard → Input Sources → + Add Input Source…**, search
    `azoo`, select **Japanese (azooKey)** and click **Add**.
    If Settings was already open, quit it first (see [Troubleshooting](#troubleshooting)).
-4. Switch to azooKey with **Super+Space** (or your own input-source shortcut).
+3. Switch to azooKey with **Super+Space** (or your own input-source shortcut).
    The top bar shows **あ**.
 
 ## Typing
@@ -129,6 +135,16 @@ limit or turn Zenzai off.
 **Anything else.** Please open an issue and include the log from
 `journalctl --user -b -u org.freedesktop.IBus.session.GNOME.service | grep ibus-azookey`.
 
+## Updating
+
+With the package repository, new versions arrive through Software Updater or
+`sudo apt upgrade`. With a downloaded `.deb`, install the newer file the same
+way as the first one. Your settings, learning data and downloaded models are
+kept.
+
+The new version starts the next time you log in, or right away after
+`ibus restart`.
+
 ## Uninstall
 
 Remove **Japanese (azooKey)** under **Settings → Keyboard → Input Sources**, then:
@@ -136,6 +152,7 @@ Remove **Japanese (azooKey)** under **Settings → Keyboard → Input Sources**,
 ```sh
 sudo apt remove ibus-azookey
 ibus restart
+sudo rm -f /etc/apt/sources.list.d/ibus-azookey.list /etc/apt/keyrings/ibus-azookey.asc   # the package repository
 rm -rf ~/.config/ibus-azookey ~/.local/share/ibus-azookey   # optional: settings and learning data
 ```
 

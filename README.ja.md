@@ -21,17 +21,24 @@
 
 ## インストール
 
-1. [Releases](../../releases/latest) から `ibus-azookey_<バージョン>_amd64.deb` をダウンロードします。
-2. インストールして IBus を再起動します。
+1. パッケージリポジトリを追加して ibus-azookey をインストールし、IBus を再起動します。
    ```sh
-   sudo apt install ./ibus-azookey_*_amd64.deb
+   sudo wget -qO /etc/apt/keyrings/ibus-azookey.asc https://rotarymars.github.io/azookey-for-ubuntu/key.asc
+   echo "deb [signed-by=/etc/apt/keyrings/ibus-azookey.asc] https://rotarymars.github.io/azookey-for-ubuntu ./" | sudo tee /etc/apt/sources.list.d/ibus-azookey.list
+   sudo apt update
+   sudo apt install ibus-azookey
    ibus restart
    ```
-3. **設定 → キーボード → 入力ソース → ＋ 入力ソースを追加…** を開き、`azoo` で検索して
+   以降の新しいバージョンは、ほかの更新と一緒に届きます（[更新](#更新)参照）。
+   リポジトリを追加せずにインストールする場合は、[Releases](../../releases/latest) から
+   `ibus-azookey_<バージョン>_amd64.deb` をダウンロードし、
+   `sudo apt install ./ibus-azookey_*_amd64.deb` と `ibus restart` を実行します。
+   この場合、新しいバージョンも同じ手順で手動でインストールします。
+2. **設定 → キーボード → 入力ソース → ＋ 入力ソースを追加…** を開き、`azoo` で検索して
    **日本語 (azooKey)** を選び、**追加** を押します。
    設定アプリを開いたままだった場合は、いったん完全に終了してください
    （[トラブルシューティング](#トラブルシューティング)参照）。
-4. **Super+Space**（または自分で設定した入力ソースの切り替えキー）で azooKey に切り替えます。
+3. **Super+Space**（または自分で設定した入力ソースの切り替えキー）で azooKey に切り替えます。
    トップバーに **あ** と表示されます。
 
 ## 入力のしかた
@@ -128,6 +135,16 @@ JIS キーボードでは、英数・無変換で直接入力に、かな・変�
 `journalctl --user -b -u org.freedesktop.IBus.session.GNOME.service | grep ibus-azookey`
 のログを添えて Issue を作成してください。
 
+## 更新
+
+パッケージリポジトリを追加した場合、新しいバージョンは「ソフトウェアの更新」または
+`sudo apt upgrade` で届きます。ダウンロードした `.deb` でインストールした場合は、
+新しいファイルを最初と同じ手順でインストールします。設定、学習データ、
+ダウンロードしたモデルはそのまま残ります。
+
+新しいバージョンは、次回ログインしたとき、または `ibus restart` を実行するとすぐに
+使われるようになります。
+
 ## アンインストール
 
 **設定 → キーボード → 入力ソース** から **日本語 (azooKey)** を削除してから、次を実行します。
@@ -135,6 +152,7 @@ JIS キーボードでは、英数・無変換で直接入力に、かな・変�
 ```sh
 sudo apt remove ibus-azookey
 ibus restart
+sudo rm -f /etc/apt/sources.list.d/ibus-azookey.list /etc/apt/keyrings/ibus-azookey.asc   # パッケージリポジトリ
 rm -rf ~/.config/ibus-azookey ~/.local/share/ibus-azookey   # 任意：設定と学習データ
 ```
 
