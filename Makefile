@@ -62,6 +62,7 @@ stage: engine model
 		data/azookey.xml.in > $(STAGE)$(COMPONENTDIR)/azookey.xml
 	install -m 644 LICENSE THIRD_PARTY_NOTICES.md $(STAGE)$(DOCDIR)/
 	install -m 644 data/licenses/Apache-2.0.txt $(STAGE)$(DOCDIR)/licenses/
+	chmod -R u+rwX,go=rX $(STAGE)
 	@echo ">> staged into $(STAGE)$(PREFIX)"
 
 test: check-swift llama
