@@ -66,6 +66,8 @@ first. `sudo make uninstall` removes it again.
 Releases are built by GitHub Actions (`.github/workflows/build.yml`). Every
 push and pull request runs the unit tests, builds the package and runs the
 end-to-end test on Ubuntu 24.04; the `.deb` is kept as a workflow artifact.
+It also builds the APT repository with a throwaway key and checks that apt
+accepts it.
 
 1. Bump `VERSION` in the `Makefile` and `PackageMetadata.version` in
    `Sources/AzooKeyCore/Support.swift`, and commit.
@@ -75,8 +77,34 @@ end-to-end test on Ubuntu 24.04; the `.deb` is kept as a workflow artifact.
    git push origin main v0.1.2
    ```
    The workflow then publishes a GitHub release with
-   `ibus-azookey_<version>_amd64.deb` attached. It refuses to if the tag and
-   `VERSION` differ.
+   `ibus-azookey_<version>_amd64.deb` attached, and replaces the APT
+   repository on GitHub Pages with one holding the new version. It refuses to
+   if the tag and `VERSION` differ.
+
+`scripts/build-apt-repo.sh` builds that repository: a signed flat repository
+(`deb [signed-by=…] <url> ./`) with the public key as `key.asc`. It signs with
+the only secret key in GnuPG's keyring and then checks the result with apt,
+using a private apt state.
+
+### One-time setup for the APT repository
+
+1. Create a signing key used for nothing else, in a temporary keyring, and
+   store it as the `APT_SIGNING_KEY` Actions secret:
+   ```sh
+   export GNUPGHOME="$(mktemp -d)"
+   gpg --batch --passphrase '' --quick-generate-key "ibus-azookey APT repository" ed25519 sign never
+   gpg --armor --export-secret-keys | gh secret set APT_SIGNING_KEY
+   gpg --armor --export-secret-keys   # copy this into a password manager as a backup
+   gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"; unset GNUPGHOME
+   ```
+   The key has no passphrase because only CI uses it, and no expiry date
+   because users' apt would stop accepting updates when it expired. Keep the
+   backup: with a new key, every user has to download `key.asc` again.
+2. In the repository's **Settings → Pages**, set **Source** to
+   **GitHub Actions**.
+3. In **Settings → Environments → github-pages**, add a deployment tag rule
+   `v*`. Pages allows only the default branch to deploy by default, and
+   releases deploy from their tag.
 
 To build the same package locally, run `make release`. It is `make deb` with
 llama.cpp built for any x86-64 CPU with AVX2 (x86-64-v3) instead of
@@ -114,7 +142,7 @@ tools/ibus-setup-azookey (Python, GTK4) ── config.json ── read by the en
 | `tools/ibus-setup-azookey` | settings window (GTK4/libadwaita) |
 | `data/` | IBus component, GNOME Settings entry, icon, license texts |
 | `tests/` | unit tests and the IBus end-to-end test |
-| `scripts/` | Swift installer, llama.cpp build, model download, `.deb` packaging |
+| `scripts/` | Swift installer, llama.cpp build, model download, `.deb` packaging, APT repository |
 
 ## Pinned upstream versions
 
