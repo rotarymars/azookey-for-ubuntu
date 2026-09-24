@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=azooKey Settings
+Name[ja]=azooKey の設定
+Comment=Settings for the azooKey Japanese input method
+Comment[ja]=azooKey 日本語入力の設定
+Exec=@LIBDIR@/ibus-setup-azookey
+Icon=@DATADIR@/icons/ibus-azookey.svg
+StartupNotify=true
+StartupWMClass=org.freedesktop.IBus.AzooKey.Setup
+NoDisplay=true

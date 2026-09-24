@@ -9,7 +9,7 @@
 #   make deb             build a .deb from the staged tree
 #   make release         build a .deb that runs on any x86-64 CPU with AVX2
 
-VERSION      := 0.1.1
+VERSION      := 0.1.2
 PREFIX       ?= /usr
 DESTDIR      ?=
 MODEL        ?= small
@@ -26,6 +26,8 @@ LIBDIR       := $(PREFIX)/lib/ibus-azookey
 DATADIR      := $(PREFIX)/share/ibus-azookey
 COMPONENTDIR := $(PREFIX)/share/ibus/component
 DOCDIR       := $(PREFIX)/share/doc/ibus-azookey
+# GNOME Settings finds an engine's preferences as ibus-setup-<engine>.desktop.
+APPDIR       := $(PREFIX)/share/applications
 STAGE        := build/stage
 
 .PHONY: all llama model engine stage test e2e install uninstall deb release clean check-swift
@@ -55,7 +57,7 @@ stage: engine model
 	$(eval BIN := $(shell "$(SWIFT)" build -c $(CONFIG) --show-bin-path))
 	rm -rf $(STAGE)
 	install -d $(STAGE)$(LIBDIR)/lib $(STAGE)$(DATADIR)/models $(STAGE)$(DATADIR)/icons \
-		$(STAGE)$(COMPONENTDIR) $(STAGE)$(DOCDIR)/licenses
+		$(STAGE)$(COMPONENTDIR) $(STAGE)$(DOCDIR)/licenses $(STAGE)$(APPDIR)
 	install -m 755 $(BIN)/ibus-engine-azookey $(STAGE)$(LIBDIR)/
 	install -m 755 tools/ibus-setup-azookey $(STAGE)$(LIBDIR)/
 	strip --strip-unneeded $(STAGE)$(LIBDIR)/ibus-engine-azookey
@@ -66,6 +68,8 @@ stage: engine model
 	sed -e 's|@LIBDIR@|$(LIBDIR)|g' -e 's|@DATADIR@|$(DATADIR)|g' -e 's|@DOCDIR@|$(DOCDIR)|g' \
 		-e 's|@VERSION@|$(VERSION)|g' \
 		data/azookey.xml.in > $(STAGE)$(COMPONENTDIR)/azookey.xml
+	sed -e 's|@LIBDIR@|$(LIBDIR)|g' -e 's|@DATADIR@|$(DATADIR)|g' \
+		data/ibus-setup-azookey.desktop.in > $(STAGE)$(APPDIR)/ibus-setup-azookey.desktop
 	install -m 644 README.md LICENSE THIRD_PARTY_NOTICES.md $(STAGE)$(DOCDIR)/
 	install -m 644 data/licenses/Apache-2.0.txt $(STAGE)$(DOCDIR)/licenses/
 	chmod -R u+rwX,go=rX $(STAGE)
@@ -89,7 +93,7 @@ install:
 
 uninstall:
 	rm -rf $(DESTDIR)$(LIBDIR) $(DESTDIR)$(DATADIR) $(DESTDIR)$(DOCDIR)
-	rm -f $(DESTDIR)$(COMPONENTDIR)/azookey.xml
+	rm -f $(DESTDIR)$(COMPONENTDIR)/azookey.xml $(DESTDIR)$(APPDIR)/ibus-setup-azookey.desktop
 
 deb: stage
 	rm -f build/ibus-azookey_*.deb
