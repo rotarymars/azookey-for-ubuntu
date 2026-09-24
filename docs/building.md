@@ -42,6 +42,11 @@ make e2e    # end-to-end test through a private ibus-daemon
   temporary config and cache directories, then types into the engine through a
   real IBus input context. Your desktop's IBus is not touched. It fails on any
   GLib assertion in the daemon or engine log.
+- `make e2e` also puts zenz-v3.2-xsmall where the settings window saves
+  downloaded models and checks that the engine switches to it, and falls back
+  to the bundled model when a missing one is selected.
+- `tools/ibus-setup-azookey --self-test` checks the settings window without
+  showing it (needs a display; CI runs it under Xvfb).
 - `AZOOKEY_IBUS_DEBUG=1 KEEP_E2E_TMP=1 make e2e` keeps the test's temporary
   directory, whose `daemon.log` has the engine's debug log with per-key timings.
 

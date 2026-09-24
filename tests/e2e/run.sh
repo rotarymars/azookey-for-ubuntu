@@ -38,6 +38,12 @@ export IBUS_COMPONENT_PATH="$TMP/component"
 export IBUS_ADDRESS="unix:path=$TMP/ibus.sock"
 mkdir -p "$IBUS_COMPONENT_PATH" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
 
+# A model "downloaded" by the settings window, to test switching models.
+if [ -n "${E2E_DOWNLOADED_MODEL:-}" ]; then
+    mkdir -p "$XDG_DATA_HOME/ibus-azookey/models"
+    cp -r "$E2E_DOWNLOADED_MODEL" "$XDG_DATA_HOME/ibus-azookey/models/"
+fi
+
 # The staged component points at /usr; aim it at the staged engine instead.
 sed "s|/usr/lib/ibus-azookey|$STAGED_PREFIX/lib/ibus-azookey|g" \
     "$STAGED_PREFIX/share/ibus/component/azookey.xml" > "$IBUS_COMPONENT_PATH/azookey.xml"
@@ -61,6 +67,22 @@ status=0
 if grep -E "assertion .* failed|CRITICAL" "$TMP/daemon.log"; then
     echo "FAIL ibus-daemon or the engine logged GLib assertions (see above)"
     status=1
+fi
+# client.py switched to the downloaded model and then to a missing one.
+if [ -n "${E2E_DOWNLOADED_MODEL:-}" ]; then
+    downloaded="$XDG_DATA_HOME/ibus-azookey/models/$(basename "$E2E_DOWNLOADED_MODEL")"
+    if grep -q "Zenzai model: $downloaded" "$TMP/daemon.log"; then
+        echo "ok   the engine loaded the downloaded model"
+    else
+        echo "FAIL the engine never loaded the downloaded model"
+        status=1
+    fi
+    if grep -q "zenz-v3.1-small is not installed; using zenz-v3.2-small" "$TMP/daemon.log"; then
+        echo "ok   a missing model falls back to the bundled one"
+    else
+        echo "FAIL selecting a missing model did not fall back to the bundled one"
+        status=1
+    fi
 fi
 if [ $status -ne 0 ]; then
     echo "---- ibus-daemon / engine log ----"

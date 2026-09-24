@@ -270,6 +270,16 @@ def main():
     check("typing works after switching back", handled and client.preedit == "あ", client.preedit)
     client.cancel()
 
+    # Models chosen in the settings window. run.sh put zenz-v3.2-xsmall where
+    # downloads go and checks the engine log for which model was loaded.
+    downloaded = Path(os.environ["XDG_DATA_HOME"]) / "ibus-azookey" / "models" / "zenz-v3.2-xsmall"
+    if downloaded.exists():
+        for model in ("zenz-v3.2-xsmall", "zenz-v3.1-small"):  # downloaded, then missing
+            apply_config({"zenzaiModel": model})
+            converted = conversion_of("kyouhaiitenki")
+            check(f"converts with zenzaiModel={model}", converted not in ("", "きょうはいいてんき"), converted)
+        apply_config({})
+
     print(f"{failures} failure(s)")
     return 1 if failures else 0
 

@@ -9,7 +9,7 @@
 #   make deb             build a .deb from the staged tree
 #   make release         build a .deb that runs on any x86-64 CPU with AVX2
 
-VERSION      := 0.1.2
+VERSION      := 0.1.3
 PREFIX       ?= /usr
 DESTDIR      ?=
 # A model id from data/models.json to bundle (small/xsmall mean zenz-v3.2).
@@ -81,8 +81,12 @@ stage: engine model
 test: check-swift llama
 	LD_LIBRARY_PATH=$(CURDIR)/build/lib "$(SWIFT)" test
 
+# Also places zenz-v3.2-xsmall where the settings window downloads models, so
+# the test covers switching to a downloaded model.
 e2e: stage
-	dbus-run-session --config-file=tests/e2e/session.conf -- ./tests/e2e/run.sh $(STAGE)$(PREFIX)
+	./scripts/fetch-model.sh zenz-v3.2-xsmall
+	E2E_DOWNLOADED_MODEL=$(CURDIR)/build/models/zenz-v3.2-xsmall \
+		dbus-run-session --config-file=tests/e2e/session.conf -- ./tests/e2e/run.sh $(STAGE)$(PREFIX)
 
 # Deliberately does not build: run `make` as your user first, then only
 # the copy step needs root.

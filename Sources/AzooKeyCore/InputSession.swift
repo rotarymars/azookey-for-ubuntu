@@ -152,6 +152,11 @@ public final class InputSession {
         self.managerModelDirectory = host.zenzaiModelDirectory
         self.manager = Self.makeManager(host: host, modelDirectory: managerModelDirectory)
         self.manager.delegate = textContext
+        Self.logModel(managerModelDirectory)
+    }
+
+    private static func logModel(_ directory: URL?) {
+        Log.info("Zenzai model: \(directory?.path ?? "none (dictionary only)")")
     }
 
     /// Releases the conversion session on the shared converter.
@@ -199,6 +204,7 @@ public final class InputSession {
             managerModelDirectory = modelDirectory
             manager = Self.makeManager(host: host, modelDirectory: modelDirectory)
             manager.delegate = textContext
+            Self.logModel(modelDirectory)
         }
     }
 

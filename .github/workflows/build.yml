@@ -32,7 +32,8 @@ jobs:
             binutils unzip gnupg2 libc6-dev libcurl4-openssl-dev libedit2 libgcc-13-dev \
             libpython3-dev libsqlite3-0 libstdc++-13-dev libxml2-dev libncurses-dev libz3-dev \
             tzdata zlib1g-dev \
-            ibus ibus-data dbus-daemon python3-gi gir1.2-ibus-1.0
+            ibus ibus-data dbus-daemon python3-gi gir1.2-ibus-1.0 \
+            xvfb gir1.2-gtk-4.0 gir1.2-adw-1
 
       - name: Install Swift
         run: |
@@ -50,6 +51,11 @@ jobs:
 
       - name: Unit tests
         run: make test
+
+      - name: Settings window test
+        env:
+          GSK_RENDERER: cairo
+        run: dbus-run-session -- xvfb-run -a tools/ibus-setup-azookey --self-test
 
       - name: Build the package
         run: make release
