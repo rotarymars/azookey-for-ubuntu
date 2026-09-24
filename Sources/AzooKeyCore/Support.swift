@@ -1,7 +1,7 @@
 import Foundation
 
 public enum PackageMetadata {
-    public static let version = "0.1.3"
+    public static let version = "0.1.4"
 }
 
 /// Writes to stderr, which the engine shares with ibus-daemon; on GNOME that

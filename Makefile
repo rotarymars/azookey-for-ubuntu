@@ -9,7 +9,7 @@
 #   make deb             build a .deb from the staged tree
 #   make release         build a .deb that runs on any x86-64 CPU with AVX2
 
-VERSION      := 0.1.3
+VERSION      := 0.1.4
 PREFIX       ?= /usr
 DESTDIR      ?=
 # A model id from data/models.json to bundle (small/xsmall mean zenz-v3.2).
