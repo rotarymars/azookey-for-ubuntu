@@ -46,21 +46,30 @@ final class Typist {
     }
 }
 
-/// Fresh settings and learning directory for each test; Zenzai is off so the
-/// dictionary alone decides and results are deterministic.
-@MainActor
-func makeHost(_ configure: (inout Settings) -> Void = { _ in }, dataDirectory: URL? = nil) -> ConverterHost {
-    let directory = dataDirectory ?? FileManager.default.temporaryDirectory
-        .appendingPathComponent("azookey-tests-\(UUID().uuidString)", isDirectory: true)
-    setenv("AZOOKEY_IBUS_DATA_DIR", directory.path, 1)
-    var settings = Settings()
-    settings.zenzaiEnabled = false
-    configure(&settings)
-    Config.settings = settings
-    return ConverterHost()
-}
+@Suite(.serialized) @MainActor final class InputSessionTests {
+    /// Learning directories created by this test; removed when it finishes.
+    private var directories: [URL] = []
 
-@Suite(.serialized) @MainActor struct InputSessionTests {
+    deinit {
+        for directory in directories {
+            try? FileManager.default.removeItem(at: directory)
+        }
+    }
+
+    /// Fresh settings and learning directory; Zenzai is off so the dictionary
+    /// alone decides and results are deterministic.
+    func makeHost(_ configure: (inout Settings) -> Void = { _ in }, dataDirectory: URL? = nil) -> ConverterHost {
+        let directory = dataDirectory ?? FileManager.default.temporaryDirectory
+            .appendingPathComponent("azookey-tests-\(UUID().uuidString)", isDirectory: true)
+        directories.append(directory)
+        setenv("AZOOKEY_IBUS_DATA_DIR", directory.path, 1)
+        var settings = Settings()
+        settings.zenzaiEnabled = false
+        configure(&settings)
+        Config.settings = settings
+        return ConverterHost()
+    }
+
     @Test func composingShowsHiraganaAndAPreview() {
         let typist = Typist(makeHost().makeSession())
         typist.type("kyouhaiitenki")

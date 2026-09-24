@@ -43,6 +43,7 @@ if useSession {
     MainActor.assumeIsolated {
         typeThroughSession()
     }
+    try? FileManager.default.removeItem(at: workDirectory)
     exit(0)
 }
 
