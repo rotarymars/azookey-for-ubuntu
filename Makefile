@@ -70,7 +70,7 @@ stage: engine model
 		data/azookey.xml.in > $(STAGE)$(COMPONENTDIR)/azookey.xml
 	sed -e 's|@LIBDIR@|$(LIBDIR)|g' -e 's|@DATADIR@|$(DATADIR)|g' \
 		data/ibus-setup-azookey.desktop.in > $(STAGE)$(APPDIR)/ibus-setup-azookey.desktop
-	install -m 644 README.md LICENSE THIRD_PARTY_NOTICES.md $(STAGE)$(DOCDIR)/
+	install -m 644 README.md README.ja.md LICENSE THIRD_PARTY_NOTICES.md $(STAGE)$(DOCDIR)/
 	install -m 644 data/licenses/Apache-2.0.txt $(STAGE)$(DOCDIR)/licenses/
 	chmod -R u+rwX,go=rX $(STAGE)
 	@echo ">> staged into $(STAGE)$(PREFIX)"

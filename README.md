@@ -1,150 +1,146 @@
-# ibus-azookey: azooKey Japanese input for Ubuntu (unofficial)
+# ibus-azookey
 
-An IBus input method that brings [azooKey](https://github.com/azooKey/azooKey)'s
-kana-kanji conversion to Ubuntu and Debian desktops:
+Japanese input for Ubuntu with [azooKey](https://github.com/azooKey/azooKey)'s
+conversion engine and its Zenzai neural model: an **unofficial** IBus port.
 
-- **AzooKeyKanaKanjiConverter**, azooKey's conversion engine, with its dictionary
-  and learning
-- **Zenzai** neural conversion with the **zenz-v3.2** model (Apache-2.0), running on
-  the CPU through llama.cpp
-- **azooKey-Desktop's input logic** (state machine, segment editing, key
-  bindings), so it behaves like azooKey on the Mac
+[日本語版 README](README.ja.md)
 
-It is an unofficial port and is not affiliated with or endorsed by the azooKey
-project. Everything used is MIT or Apache-2.0 and the model may be
-redistributed; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Accurate kana-kanji conversion: azooKey's dictionary plus the zenz-v3.2 model,
+  which chooses words from context
+- Learns the words you pick
+- Same keys and conversion flow as azooKey on the Mac
+- Runs entirely on your computer: no network, no GPU needed
 
-Developed on Ubuntu 24.04 (GNOME on Wayland, IBus 1.5.29) and tested with unit
-tests plus an end-to-end test that types through a real (private) ibus-daemon.
+This project is not affiliated with or endorsed by the azooKey project.
 
-## Build
+## Requirements
 
-```sh
-scripts/install-swift.sh   # Swift 6.3.3 into ~/.local/share/swift-toolchains (no root, no PATH changes)
-make                       # llama.cpp, model download, engine -> build/stage
-make test                  # unit tests
-make e2e                   # types through a private ibus-daemon (your running IBus is not touched)
-```
-
-`make` builds the azooKey fork of llama.cpp (tag b4846, the version the
-converter's headers expect), downloads zenz-v3.2-small from Hugging Face pinned by
-commit and SHA-256, and links the Swift runtime statically so the installed engine
-does not depend on the toolchain. `make MODEL=xsmall` uses the smaller model.
-
-Build dependencies (Ubuntu package names): `git cmake ninja-build g++ pkg-config
-curl gpg libibus-1.0-dev libglib2.0-dev`, plus what Swift itself needs
-(see <https://www.swift.org/install/linux/>).
+- Ubuntu 24.04 with GNOME (it uses IBus, Ubuntu's standard input method framework)
+- A 64-bit x86 CPU with AVX2: most PCs from the last ten years. Check with
+  `grep -c avx2 /proc/cpuinfo`; any number above 0 is fine.
+- About 180 MB of disk space and 140 MB of memory
 
 ## Install
 
-Either build a package, which `apt` can remove cleanly later:
-
-```sh
-make deb
-sudo apt install ./build/ibus-azookey_*_amd64.deb   # remove: sudo apt remove ibus-azookey
-```
-
-or copy the staged files directly:
-
-```sh
-sudo make install        # remove: sudo make uninstall
-```
-
-Then, as your user:
-
-```sh
-ibus restart
-```
-
-and add the input source in **Settings → Keyboard → Input Sources → + →
-Japanese → azooKey**. Ctrl+Space (or Super+Space, depending on your GNOME
-shortcut) switches between azooKey and your other layouts.
+1. Download `ibus-azookey_<version>_amd64.deb` from
+   [Releases](../../releases/latest).
+2. Install it and restart IBus:
+   ```sh
+   sudo apt install ./ibus-azookey_*_amd64.deb
+   ibus restart
+   ```
+3. Open **Settings → Keyboard → Input Sources → + Add Input Source…**, search
+   `azoo`, select **Japanese (azooKey)** and click **Add**.
+   If Settings was already open, quit it first (see [Troubleshooting](#troubleshooting)).
+4. Switch to azooKey with **Super+Space** (or your own input-source shortcut).
+   The top bar shows **あ**.
 
 ## Typing
 
-| Key | While typing | While converting |
-|---|---|---|
-| letters | romaji → hiragana, the top conversion is previewed below | commit and keep typing |
-| Space | convert | next candidate (Shift+Space: previous) |
-| Space twice | open the candidate list | |
-| 1–9 | | pick a candidate from the page |
-| ↓ / ↑ | open the list | move in the list |
-| Enter | commit as typed | commit the selection |
-| Esc | cancel the input | step back (list → first conversion → hiragana) |
-| Shift+← / Shift+→ (Ctrl+I / Ctrl+O) | | shrink / extend the segment |
-| → | | commit the first segment, convert the rest |
-| F6 / F7 / F8 / F9 / F10 | hiragana / katakana / half-width katakana / full-width / half-width alphanumerics (also Ctrl+J / K / ; / L / :) | |
-| Ctrl+Backspace | | forget what was learned for this candidate |
-| Ctrl+Shift+U | Unicode input (U+XXXX) | |
+Type in romaji. It appears as hiragana, with the top conversion shown below.
 
-JIS keyboards: 英数/無変換 switch to direct input and かな/変換 back to Japanese;
-半角/全角 toggles. The top bar shows あ or A.
+| Key | Action |
+|---|---|
+| Space | Convert. Press again to open the candidate list |
+| Space / ↓ / ↑ | Move through candidates (Shift+Space goes back) |
+| 1–9 | Pick a candidate from the list |
+| Enter | Commit |
+| Esc | Step back: list → conversion → hiragana → cancel |
+| Shift+← / Shift+→ | Make the segment being converted shorter / longer |
+| → | Commit the first segment and convert the rest |
+| F6 / F7 / F8 | Hiragana / katakana / half-width katakana |
+| F9 / F10 | Full-width / half-width letters |
+| Ctrl+Backspace | In the list: forget what was learned for that candidate |
+
+While typing, Emacs-style keys work too: Ctrl+H (backspace), Ctrl+N / Ctrl+P
+(down / up), Ctrl+I / Ctrl+O (resize the segment), Ctrl+J / K / ; / L / : (F6–F10).
+
+On a Japanese (JIS) keyboard, 英数 or 無変換 switches to direct input, かな or 変換
+switches back to Japanese, and 半角/全角 toggles.
 
 ## Settings
 
-Click the あ indicator for quick toggles (input mode, live conversion, Zenzai,
-learning) or choose **設定…** for the settings window, also reachable from the
-input source's Preferences in GNOME Settings. Settings are stored in
-`~/.config/ibus-azookey/config.json` and apply the next time a text field gets
-focus.
+Click **あ** in the top bar for quick switches: input mode, live conversion,
+Zenzai and learning. **設定…** in that menu opens the settings window. The
+same window opens from **⋮ → Preferences** next to azooKey in
+**Settings → Keyboard**. It covers:
+
+- **Learning**: learn from your choices, only use what was learned, or off; reset learning
+- **Live conversion**: show kanji as you type instead of converting with Space
+- **Input method**: romaji, AZIK, or kana input (US or JIS layout)
+- **Punctuation** (。、 or ．，), space width, the backslash/yen key, candidates per page
+- **Zenzai**: on or off, accuracy versus speed, a short self-description
+  (e.g. エンジニア) that steers conversions, and use of the text around the cursor
+
+Changes apply the next time you click into a text field.
+
+<details>
+<summary>Editing the settings file directly</summary>
+
+Settings are stored in `~/.config/ibus-azookey/config.json`. Missing keys use
+the defaults below.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `learning` | `inputAndOutput` | `inputAndOutput` learns and uses learning, `onlyOutput` uses existing learning only, `nothing` ignores it |
+| `learning` | `inputAndOutput` | `inputAndOutput` learns and uses learning, `onlyOutput` only uses it, `nothing` turns it off |
 | `liveConversion` | `false` | show kanji while typing instead of converting on Space |
 | `zenzaiEnabled` | `true` | neural conversion |
 | `zenzaiModel` | `small` | `small` or `xsmall` (must be installed) |
-| `zenzaiInferenceLimit` | `5` | more is slower but can be more accurate |
-| `zenzaiProfile` | `""` | a short self-description that steers conversion, e.g. `エンジニア` |
+| `zenzaiInferenceLimit` | `5` | higher is slower but can be more accurate |
+| `zenzaiProfile` | `""` | a short self-description that steers conversion |
 | `useSurroundingText` | `true` | give Zenzai the text around the cursor as context |
 | `inputStyle` | `roman` | `roman`, `azik`, `kanaUS`, `kanaJIS` |
 | `punctuationStyle` | `kutenAndToten` | `kutenAndToten` 。、 / `kutenAndComma` 。， / `periodAndToten` ．、 / `periodAndComma` ．， |
-| `typeBackSlash` | `true` | the backslash key types \ (false: ¥) |
+| `typeBackSlash` | `true` | the backslash key types \ (`false`: ¥) |
 | `typeHalfSpace` | `false` | Space types a half-width space in Japanese mode |
 | `candidatePageSize` | `9` | candidates per page |
 
-### Learning
+</details>
 
-Learning is on by default. Candidates you choose are remembered in
-`~/.local/share/ibus-azookey/memory` and move up next time. With Zenzai on, a
-learned word gets a boost but the model still has the final say on the top
-conversion when context clearly favors another word (azooKey's design); it is
-always ranked higher in the candidate list. With Zenzai off, the learned word
-becomes the first conversion. Reset learning from the settings window.
+### How learning works
 
-## Performance
+Learning is on by default, so words you pick rank higher next time. With
+Zenzai on, a learned word gets a boost, but the model still decides the top
+conversion when the context clearly calls for another word (this is how
+azooKey itself works); your word still moves up the candidate list. With
+Zenzai off, a learned word becomes the first conversion. Learning data lives in
+`~/.local/share/ibus-azookey`.
 
-On a Ryzen 7 7735HS, with zenz-v3.2-small, Zenzai on and 8 CPU threads, a keystroke
-takes about 20 ms on average and about 50 ms at worst through IBus. The first
-keystroke after login loads the dictionary and the model (about 0.2 s). The
-engine uses about 140 MB of memory.
+## Troubleshooting
 
-## Layout
+**azooKey is not in the Add Input Source list.** Run `ibus restart`, then
+quit Settings completely and open it again. Closing the window is not always
+enough; `pkill gnome-control-center` makes sure.
 
-```
-Sources/AzooKeyCore/Upstream   azooKey-Desktop's input logic (MIT, origin in each file)
-Sources/AzooKeyCore            Linux key table, settings, sessions
-Sources/AzooKeyIBusShim        the IBusEngine GObject subclass (C)
-Sources/ibus-engine-azookey    the engine: IBus callbacks, rendering, status menu
-Sources/azookey-cli            conversion and latency tool (azookey-cli --help in main.swift)
-tools/ibus-setup-azookey       settings window (GTK4/libadwaita)
-tests/                         unit tests and the IBus end-to-end test
-scripts/                       toolchain, llama.cpp, model and .deb helpers
-```
+**Typing does not produce Japanese.** Check that the top bar shows **あ**. If it
+shows **A**, click it and choose ひらがな.
 
-The engine logs to the user journal through GNOME's IBus service:
+**The first key after logging in is slow.** The dictionary and the model load
+on first use (about 0.2 seconds).
+
+**Conversion feels slow.** In the settings window, lower the Zenzai inference
+limit or turn Zenzai off.
+
+**Anything else.** Please open an issue and include the log from
 `journalctl --user -b -u org.freedesktop.IBus.session.GNOME.service | grep ibus-azookey`.
 
-## Limitations
+## Uninstall
 
-- No user dictionary editor yet.
-- Zenzai personalization (azooKey-Desktop's personal n-gram model) is not available.
-- GNOME Shell does not forward preedit colors to Wayland apps, so the segment
-  being converted is marked by the cursor position rather than highlighting
-  (X11 and Qt apps show the highlight).
-- CPU inference only.
+Remove **Japanese (azooKey)** under **Settings → Keyboard → Input Sources**, then:
+
+```sh
+sudo apt remove ibus-azookey
+ibus restart
+rm -rf ~/.config/ibus-azookey ~/.local/share/ibus-azookey   # optional: settings and learning data
+```
+
+## Building from source
+
+See [docs/building.md](docs/building.md).
 
 ## License
 
-MIT for this repository's code; see [LICENSE](LICENSE). Third-party components
-and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+This repository's code is MIT licensed ([LICENSE](LICENSE)). It builds on
+AzooKeyKanaKanjiConverter and parts of azooKey-Desktop (MIT), azooKey's
+dictionary and the zenz-v3.2 model (Apache-2.0), and llama.cpp (MIT). See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
