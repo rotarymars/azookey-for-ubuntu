@@ -44,8 +44,11 @@ sed "s|/usr/lib/ibus-azookey|$STAGED_PREFIX/lib/ibus-azookey|g" \
 # The keyboard-layout engines, to test switching input sources.
 cp /usr/share/ibus/component/simple.xml "$IBUS_COMPONENT_PATH/"
 
+# --cache=refresh makes the daemon serialize every component into its registry
+# cache (inside $TMP), as the desktop daemon does; that is where a component
+# with a missing field shows up as a GLib assertion.
 ibus-daemon --single --panel=disable --emoji-extension=disable --config=disable \
-    --cache=none --address="$IBUS_ADDRESS" --verbose > "$TMP/daemon.log" 2>&1 &
+    --cache=refresh --address="$IBUS_ADDRESS" --verbose > "$TMP/daemon.log" 2>&1 &
 DAEMON_PID=$!
 for _ in $(seq 100); do
     [ -S "$TMP/ibus.sock" ] && break
@@ -55,6 +58,10 @@ done
 
 status=0
 /usr/bin/python3 "$HERE/client.py" || status=$?
+if grep -E "assertion .* failed|CRITICAL" "$TMP/daemon.log"; then
+    echo "FAIL ibus-daemon or the engine logged GLib assertions (see above)"
+    status=1
+fi
 if [ $status -ne 0 ]; then
     echo "---- ibus-daemon / engine log ----"
     cat "$TMP/daemon.log"

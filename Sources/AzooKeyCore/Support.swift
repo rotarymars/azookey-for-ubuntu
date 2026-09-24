@@ -1,11 +1,12 @@
 import Foundation
 
 public enum PackageMetadata {
-    public static let version = "0.1.0"
+    public static let version = "0.1.1"
 }
 
-/// Writes to stderr, which ibus-daemon forwards to the session journal
-/// (`journalctl --user -t ibus-engine-azookey` or the GNOME Shell log).
+/// Writes to stderr, which the engine shares with ibus-daemon; on GNOME that
+/// ends up in the user journal
+/// (`journalctl --user -u org.freedesktop.IBus.session.GNOME.service`).
 public enum Log {
     public static let debugEnabled = ProcessInfo.processInfo.environment["AZOOKEY_IBUS_DEBUG"] == "1"
 

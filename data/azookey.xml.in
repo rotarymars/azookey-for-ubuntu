@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ibus-azookey: an unofficial Linux port of the azooKey Japanese input method. -->
+<!-- ibus-azookey: an unofficial Linux port of the azooKey Japanese input method.
+     Every component-level element below must be present and non-empty:
+     ibus-daemon writes them into its registry cache without NULL checks. -->
 <component>
   <name>org.freedesktop.IBus.AzooKey</name>
   <description>azooKey Japanese input (unofficial Linux port)</description>
@@ -7,6 +9,7 @@
   <version>@VERSION@</version>
   <author>rotarymars</author>
   <license>MIT</license>
+  <homepage>file://@DOCDIR@/README.md</homepage>
   <textdomain>ibus-azookey</textdomain>
   <engines>
     <engine>

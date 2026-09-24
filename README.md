@@ -41,7 +41,7 @@ Either build a package, which `apt` can remove cleanly later:
 
 ```sh
 make deb
-sudo apt install ./build/ibus-azookey_0.1.0_amd64.deb   # remove: sudo apt remove ibus-azookey
+sudo apt install ./build/ibus-azookey_*_amd64.deb   # remove: sudo apt remove ibus-azookey
 ```
 
 or copy the staged files directly:

@@ -8,7 +8,7 @@
 #   sudo make uninstall
 #   make deb             build a .deb from the staged tree
 
-VERSION      := 0.1.0
+VERSION      := 0.1.1
 PREFIX       ?= /usr
 DESTDIR      ?=
 MODEL        ?= small
@@ -58,9 +58,10 @@ stage: engine model
 	install -m 644 build/lib/*.so $(STAGE)$(LIBDIR)/lib/
 	cp -r build/models/zenz-v3.2-$(MODEL) $(STAGE)$(DATADIR)/models/
 	install -m 644 data/icons/ibus-azookey.svg $(STAGE)$(DATADIR)/icons/
-	sed -e 's|@LIBDIR@|$(LIBDIR)|g' -e 's|@DATADIR@|$(DATADIR)|g' -e 's|@VERSION@|$(VERSION)|g' \
+	sed -e 's|@LIBDIR@|$(LIBDIR)|g' -e 's|@DATADIR@|$(DATADIR)|g' -e 's|@DOCDIR@|$(DOCDIR)|g' \
+		-e 's|@VERSION@|$(VERSION)|g' \
 		data/azookey.xml.in > $(STAGE)$(COMPONENTDIR)/azookey.xml
-	install -m 644 LICENSE THIRD_PARTY_NOTICES.md $(STAGE)$(DOCDIR)/
+	install -m 644 README.md LICENSE THIRD_PARTY_NOTICES.md $(STAGE)$(DOCDIR)/
 	install -m 644 data/licenses/Apache-2.0.txt $(STAGE)$(DOCDIR)/licenses/
 	chmod -R u+rwX,go=rX $(STAGE)
 	@echo ">> staged into $(STAGE)$(PREFIX)"
@@ -86,6 +87,7 @@ uninstall:
 	rm -f $(DESTDIR)$(COMPONENTDIR)/azookey.xml
 
 deb: stage
+	rm -f build/ibus-azookey_*.deb
 	./scripts/build-deb.sh $(VERSION) $(STAGE)
 
 clean:
