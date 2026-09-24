@@ -27,7 +27,8 @@ SHLIBS="$(cd "$WORK/source" && dpkg-shlibdeps -O --ignore-missing-info -l"$LIBDI
     -e"$LIBDIR/ibus-engine-azookey" "$LIBDIR"/lib/*.so 2>/dev/null | sed -n 's/^shlibs:Depends=//p')"
 [ -n "$SHLIBS" ] || { echo "dpkg-shlibdeps found no dependencies" >&2; exit 1; }
 
-MAINTAINER="$(git -C "$ROOT" config user.name 2>/dev/null || echo "$USER") <$(git -C "$ROOT" config user.email 2>/dev/null || echo "$USER@localhost")>"
+# DEB_MAINTAINER="Name <email>" overrides the git identity (CI has none).
+MAINTAINER="${DEB_MAINTAINER:-$(git -C "$ROOT" config user.name 2>/dev/null || echo "$USER") <$(git -C "$ROOT" config user.email 2>/dev/null || echo "$USER@localhost")>}"
 cat > "$PACKAGE/DEBIAN/control" <<EOF
 Package: ibus-azookey
 Version: $VERSION

@@ -1,0 +1,93 @@
+# Builds, tests and packages ibus-azookey on every push and pull request.
+# Pushing a tag like v0.1.2 also publishes the .deb as a GitHub release.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      SWIFT_VERSION: 6.3.3
+      # Portable llama.cpp (any x86-64 CPU with AVX2) for every step, so the
+      # tests run against exactly what gets packaged.
+      LLAMA_PORTABLE: 1
+      DEB_MAINTAINER: ${{ github.repository_owner }} <${{ github.repository_owner }}@users.noreply.github.com>
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git cmake ninja-build g++ pkg-config curl gpg dpkg-dev libibus-1.0-dev libglib2.0-dev \
+            binutils unzip gnupg2 libc6-dev libcurl4-openssl-dev libedit2 libgcc-13-dev \
+            libpython3-dev libsqlite3-0 libstdc++-13-dev libxml2-dev libncurses-dev libz3-dev \
+            tzdata zlib1g-dev \
+            ibus ibus-data dbus-daemon python3-gi gir1.2-ibus-1.0
+
+      - name: Install Swift
+        run: |
+          scripts/install-swift.sh "$SWIFT_VERSION"
+          # Use this toolchain even if the runner image has another swift on PATH.
+          echo "SWIFT=$HOME/.local/share/swift-toolchains/swift-$SWIFT_VERSION-RELEASE-ubuntu24.04/usr/bin/swift" >> "$GITHUB_ENV"
+
+      - name: Cache llama.cpp and the model
+        uses: actions/cache@v6
+        with:
+          path: |
+            .deps
+            build/models
+          key: deps-${{ hashFiles('scripts/build-llama.sh', 'scripts/fetch-model.sh') }}
+
+      - name: Unit tests
+        run: make test
+
+      - name: Build the package
+        run: make release
+
+      - name: End-to-end test
+        run: make e2e
+
+      - name: Check that the package installs
+        run: |
+          sudo apt-get install -y ./build/ibus-azookey_*_amd64.deb
+          /usr/lib/ibus-azookey/ibus-engine-azookey --version
+          /usr/lib/ibus-azookey/ibus-engine-azookey --dump-settings
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ibus-azookey-deb
+          path: build/ibus-azookey_*_amd64.deb
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ibus-azookey-deb
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          deb="ibus-azookey_${GITHUB_REF_NAME#v}_amd64.deb"
+          if [ ! -f "$deb" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the package version:" ibus-azookey_*.deb >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" "$deb" --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --generate-notes

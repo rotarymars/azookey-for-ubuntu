@@ -56,15 +56,27 @@ first. `sudo make uninstall` removes it again.
 
 ## Making a release
 
+Releases are built by GitHub Actions (`.github/workflows/build.yml`). Every
+push and pull request runs the unit tests, builds the package and runs the
+end-to-end test on Ubuntu 24.04; the `.deb` is kept as a workflow artifact.
+
 1. Bump `VERSION` in the `Makefile` and `PackageMetadata.version` in
-   `Sources/AzooKeyCore/Support.swift`.
-2. `make release` builds `build/ibus-azookey_<version>_amd64.deb`. It is the
-   same as `make deb`, except that llama.cpp is built for any x86-64 CPU with
-   AVX2 (x86-64-v3) rather than `-march=native`, so the package also runs on
-   other machines. It is as fast as the native build on a Ryzen 7 7735HS.
-3. `make LLAMA_PORTABLE=1 e2e` tests that build. A plain `make e2e` would switch
-   back to the native llama.cpp first.
-4. Create a GitHub release and attach the `.deb`.
+   `Sources/AzooKeyCore/Support.swift`, and commit.
+2. Tag and push:
+   ```sh
+   git tag v0.1.2
+   git push origin main v0.1.2
+   ```
+   The workflow then publishes a GitHub release with
+   `ibus-azookey_<version>_amd64.deb` attached. It refuses to if the tag and
+   `VERSION` differ.
+
+To build the same package locally, run `make release`. It is `make deb` with
+llama.cpp built for any x86-64 CPU with AVX2 (x86-64-v3) instead of
+`-march=native`, so the package also runs on other machines; on a Ryzen 7
+7735HS it is as fast as the native build. Test it with
+`make LLAMA_PORTABLE=1 e2e` (a plain `make e2e` switches back to the native
+llama.cpp first).
 
 Before publishing binaries, read the note on the emoji dictionary in
 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md): its repository has no
