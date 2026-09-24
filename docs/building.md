@@ -35,7 +35,9 @@ make e2e    # end-to-end test through a private ibus-daemon
 - `make` builds the azooKey fork of llama.cpp for this machine's CPU,
   downloads the model from Hugging Face (pinned by commit and checked by
   SHA-256), and builds the engine with the Swift runtime linked in statically.
-- `make MODEL=xsmall` bundles the smaller, faster model instead.
+- `make MODEL=zenz-v3.2-xsmall` bundles another model from `data/models.json`
+  instead. That catalog (Hugging Face repository, pinned revision, SHA-256,
+  license) is also what the settings window downloads from.
 - `make e2e` starts its own ibus-daemon on a private D-Bus session with
   temporary config and cache directories, then types into the engine through a
   real IBus input context. Your desktop's IBus is not touched. It fails on any
@@ -116,7 +118,7 @@ tools/ibus-setup-azookey (Python, GTK4) ── config.json ── read by the en
 | AzooKeyKanaKanjiConverter | `ad714fe`, with the `ZenzaiCPU` trait | `Package.swift`, `Package.resolved` |
 | azooKey-Desktop input logic | `b7ec0e4` | `Sources/AzooKeyCore/Upstream` |
 | llama.cpp (azooKey fork) | tag `b4846` | `scripts/build-llama.sh` |
-| zenz-v3.2-small / xsmall | Hugging Face commit and SHA-256 | `scripts/fetch-model.sh` |
+| zenz models | Hugging Face commit and SHA-256 | `data/models.json` |
 
 The llama.cpp tag must match the `llama.h` that AzooKeyKanaKanjiConverter
 vendors, and the AzooKeyKanaKanjiConverter revision is the one azooKey-Desktop

@@ -52,24 +52,14 @@ public struct Settings: Equatable, Sendable {
         case periodAndComma
     }
 
-    public enum ZenzaiModel: String, Codable, CaseIterable, Sendable {
-        /// zenz-v3.2-small (74 MB): the model azooKey ships.
-        case small
-        /// zenz-v3.2-xsmall (21 MB): faster, less accurate.
-        case xsmall
-
-        public var directoryName: String {
-            "zenz-v3.2-\(self.rawValue)"
-        }
-    }
-
     public var learning: Learning = .inputAndOutput
     /// Show the top conversion in the preedit while typing (azooKey's ライブ変換).
     /// Off means classic Space-to-convert.
     public var liveConversion = false
     /// Neural conversion with the zenz model.
     public var zenzaiEnabled = true
-    public var zenzaiModel: ZenzaiModel = .small
+    /// A model id from models.json; the settings window downloads others on demand.
+    public var zenzaiModel = ModelCatalog.defaultModelID
     /// Upper bound of model evaluations per conversion (azooKey default: 5).
     public var zenzaiInferenceLimit = 5
     /// Short self-description that steers Zenzai, e.g. "エンジニア/Swift開発者".
@@ -103,7 +93,7 @@ extension Settings: Codable {
         self.learning = value(.learning, defaults.learning)
         self.liveConversion = value(.liveConversion, defaults.liveConversion)
         self.zenzaiEnabled = value(.zenzaiEnabled, defaults.zenzaiEnabled)
-        self.zenzaiModel = value(.zenzaiModel, defaults.zenzaiModel)
+        self.zenzaiModel = ModelCatalog.normalizedID(value(.zenzaiModel, defaults.zenzaiModel))
         self.zenzaiInferenceLimit = max(1, min(value(.zenzaiInferenceLimit, defaults.zenzaiInferenceLimit), 50))
         self.zenzaiProfile = value(.zenzaiProfile, defaults.zenzaiProfile)
         self.useSurroundingText = value(.useSurroundingText, defaults.useSurroundingText)

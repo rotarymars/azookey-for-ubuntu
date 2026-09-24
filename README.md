@@ -69,8 +69,13 @@ same window opens from **⋮ → Preferences** next to azooKey in
 - **Live conversion**: show kanji as you type instead of converting with Space
 - **Input method**: romaji, AZIK, or kana input (US or JIS layout)
 - **Punctuation** (。、 or ．，), space width, the backslash/yen key, candidates per page
-- **Zenzai**: on or off, accuracy versus speed, a short self-description
-  (e.g. エンジニア) that steers conversions, and use of the text around the cursor
+- **Zenzai**: on or off, the model, accuracy versus speed, a short
+  self-description (e.g. エンジニア) that steers conversions, and use of the text
+  around the cursor
+
+zenz-v3.2-small comes with the package. Choosing another model (the lighter
+zenz-v3.2-xsmall, or the older v3.1 models) downloads it from Hugging Face into
+`~/.local/share/ibus-azookey/models` after asking.
 
 Changes apply the next time you click into a text field.
 
@@ -85,7 +90,7 @@ the defaults below.
 | `learning` | `inputAndOutput` | `inputAndOutput` learns and uses learning, `onlyOutput` only uses it, `nothing` turns it off |
 | `liveConversion` | `false` | show kanji while typing instead of converting on Space |
 | `zenzaiEnabled` | `true` | neural conversion |
-| `zenzaiModel` | `small` | `small` or `xsmall` (must be installed) |
+| `zenzaiModel` | `zenz-v3.2-small` | `zenz-v3.2-small`, `zenz-v3.2-xsmall`, `zenz-v3.1-small` or `zenz-v3.1-xsmall`; others than the bundled one must be downloaded in the settings window first |
 | `zenzaiInferenceLimit` | `5` | higher is slower but can be more accurate |
 | `zenzaiProfile` | `""` | a short self-description that steers conversion |
 | `useSurroundingText` | `true` | give Zenzai the text around the cursor as context |

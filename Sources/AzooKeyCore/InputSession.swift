@@ -33,18 +33,24 @@ public final class ConverterHost {
         }
     }
 
-    /// The Zenzai model to use under the current settings, if it is installed.
+    /// The Zenzai model to use under the current settings: the selected one,
+    /// else the bundled one, else none (dictionary only).
     var zenzaiModelDirectory: URL? {
         guard Config.settings.zenzaiEnabled else {
             return nil
         }
-        let directory = Paths.modelDirectory(for: Config.settings.zenzaiModel)
-        let model = directory.appendingPathComponent(Paths.modelFileName, isDirectory: false)
-        guard FileManager.default.fileExists(atPath: model.path) else {
-            Log.error("Zenzai model not found at \(model.path); using the dictionary only")
-            return nil
+        let selected = Config.settings.zenzaiModel
+        for id in [selected, ModelCatalog.defaultModelID] {
+            let directory = Paths.modelDirectory(for: id)
+            if FileManager.default.fileExists(atPath: directory.appendingPathComponent(Paths.modelFileName).path) {
+                if id != selected {
+                    Log.error("Zenzai model \(selected) is not installed; using \(id)")
+                }
+                return directory
+            }
         }
-        return directory
+        Log.error("no Zenzai model installed; using the dictionary only")
+        return nil
     }
 }
 
@@ -179,7 +185,7 @@ public final class InputSession {
     public func setTextContext(left: String?, right: String?) {
         let enabled = Config.settings.useSurroundingText
         textContext.left = enabled ? left : nil
-        textContext.right = enabled ? right : nil
+        textContext.right = enabled && ModelCatalog.supportsRightContext(Config.settings.zenzaiModel) ? right : nil
     }
 
     /// Picks up settings that need a new SegmentsManager (the Zenzai model).

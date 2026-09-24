@@ -6,23 +6,31 @@ engine re-reads the file the next time a text field gets focus. GNOME opens
 this from Settings > Keyboard > Input Sources > azooKey > Preferences, and the
 engine's status menu has a "設定…" item for it.
 
+Zenzai models listed in data/models.json that are not installed are
+downloaded when selected, into ~/.local/share/ibus-azookey/models, and checked
+against the catalog's SHA-256.
+
 --self-test builds the window without showing it and checks that changes are
 saved (needs a display, writes into a temporary directory).
+--download MODEL_ID downloads a model without opening the window.
 """
 
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import urllib.request
 from pathlib import Path
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ENGINE = HERE / "ibus-engine-azookey"
@@ -45,10 +53,7 @@ PUNCTUATION = [
     ("periodAndToten", "．、"),
     ("periodAndComma", "．，"),
 ]
-MODELS = [
-    ("small", "zenz-v3.2-small (高精度)"),
-    ("xsmall", "zenz-v3.2-xsmall (軽量・高速)"),
-]
+MODEL_FILE = "ggml-model-Q5_K_M.gguf"
 
 
 def xdg_directory(override, variable, fallback):
@@ -67,9 +72,83 @@ def reset_request_file():
     return xdg_directory("AZOOKEY_IBUS_DATA_DIR", "XDG_DATA_HOME", ".local/share") / "reset-learning-request"
 
 
-def models_directory():
+def share_directory():
     share = os.environ.get("AZOOKEY_IBUS_SHARE_DIR")
-    return (Path(share) if share else HERE.parent.parent / "share" / "ibus-azookey") / "models"
+    return Path(share) if share else HERE.parent.parent / "share" / "ibus-azookey"
+
+
+def user_models_directory():
+    return xdg_directory("AZOOKEY_IBUS_DATA_DIR", "XDG_DATA_HOME", ".local/share") / "models"
+
+
+def load_catalog():
+    """data/models.json as installed, or from the source tree when run there."""
+    for path in (share_directory() / "models.json", HERE.parent / "data" / "models.json"):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+    return []
+
+
+def installed_location(model):
+    """Where the engine will find the model (downloads first), or None."""
+    for root in (user_models_directory(), share_directory() / "models"):
+        if (root / model["id"] / MODEL_FILE).exists():
+            return root
+    return None
+
+
+def apache_license_text():
+    for path in (HERE.parent.parent / "share" / "doc" / "ibus-azookey" / "licenses" / "Apache-2.0.txt",
+                 HERE.parent / "data" / "licenses" / "Apache-2.0.txt"):
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    return "Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt\n"
+
+
+class DownloadCancelled(Exception):
+    pass
+
+
+def download_model(model, progress=lambda done, total: None, cancelled=None):
+    """Downloads into the user's models directory and verifies the SHA-256.
+    Runs on a worker thread; `progress` gets bytes done and the total."""
+    destination = user_models_directory() / model["id"]
+    destination.mkdir(parents=True, exist_ok=True)
+    target = destination / MODEL_FILE
+    partial = target.with_name(target.name + ".part")
+    url = f"https://huggingface.co/{model['repo']}/resolve/{model['revision']}/{model['file']}"
+    digest = hashlib.sha256()
+    done = 0
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response, open(partial, "wb") as out:
+            total = int(response.headers.get("Content-Length") or model["size"])
+            while chunk := response.read(1 << 16):
+                if cancelled is not None and cancelled.is_set():
+                    raise DownloadCancelled()
+                out.write(chunk)
+                digest.update(chunk)
+                done += len(chunk)
+                progress(done, total)
+        if digest.hexdigest() != model["sha256"]:
+            raise ValueError("the download is corrupted (SHA-256 mismatch)")
+        os.replace(partial, target)
+    finally:
+        partial.unlink(missing_ok=True)
+    # The model repositories only carry a license tag; keep license and provenance.
+    if model["license"] == "Apache-2.0":
+        (destination / "LICENSE").write_text(apache_license_text(), encoding="utf-8")
+    else:
+        (destination / "LICENSE").write_text(
+            f"{model['license']}: https://creativecommons.org/licenses/by-sa/4.0/\n", encoding="utf-8")
+    (destination / "SOURCE").write_text(
+        f"Model:    {model['repo']}\nRevision: {model['revision']}\n"
+        f"File:     {model['file']} (SHA-256 {model['sha256']})\n"
+        f"Author:   Miwa Keita (https://huggingface.co/Miwa-Keita)\n"
+        f"License:  {model['license']}\nChanges:  none; redistributed unmodified.\n",
+        encoding="utf-8")
+    return target
 
 
 def load_settings():
@@ -133,9 +212,7 @@ class SettingsWindow(Adw.ApplicationWindow):
             description="zenzモデルで文脈に合った変換をします。CPUで動作します",
         )
         zenzai.add(self.switch_row("zenzaiEnabled", "Zenzai を使う", "オフにすると辞書だけで変換します"))
-        installed = [model for model in MODELS
-                     if (models_directory() / f"zenz-v3.2-{model[0]}" / "ggml-model-Q5_K_M.gguf").exists()]
-        zenzai.add(self.combo_row("zenzaiModel", "モデル", installed or MODELS))
+        self.add_model_rows(zenzai)
         zenzai.add(self.spin_row(
             "zenzaiInferenceLimit", "推論回数の上限", 1, 20, "大きいほど精度が上がり、遅くなります (既定: 5)"))
         zenzai.add(self.entry_row("zenzaiProfile", "プロフィール (例: エンジニア/Swift開発者)"))
@@ -156,6 +233,126 @@ class SettingsWindow(Adw.ApplicationWindow):
         toolbar.add_top_bar(Adw.HeaderBar())
         toolbar.set_content(self.toasts)
         self.set_content(toolbar)
+        self.connect("close-request", self.on_close_request)
+
+    def on_close_request(self, _window):
+        if self.cancel_download is not None:
+            self.cancel_download.set()
+        return False
+
+    # ---- Zenzai model selector ----
+
+    def add_model_rows(self, group):
+        self.catalog = load_catalog()
+        self.updating_models = False
+        self.cancel_download = None
+        selected = self.settings.get("zenzaiModel", "zenz-v3.2-small")
+        if selected in ("small", "xsmall"):
+            selected = f"zenz-v3.2-{selected}"
+        self.model_list = Gtk.StringList.new([self.model_label(model) for model in self.catalog])
+        row = Adw.ComboRow(
+            title="モデル", subtitle="インストールされていないモデルは、選ぶとダウンロードします", model=self.model_list)
+        ids = [model["id"] for model in self.catalog]
+        if selected in ids:
+            row.set_selected(ids.index(selected))
+        self.model_index = row.get_selected()
+        row.connect("notify::selected", self.on_model_selected)
+        self.rows["zenzaiModel"] = row
+        group.add(row)
+
+        self.download_row = Adw.ActionRow(visible=False)
+        self.download_bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER, hexpand=True, show_text=True)
+        cancel = Gtk.Button(label="キャンセル", valign=Gtk.Align.CENTER)
+        cancel.connect("clicked", lambda _: self.cancel_download and self.cancel_download.set())
+        self.download_row.add_suffix(self.download_bar)
+        self.download_row.add_suffix(cancel)
+        group.add(self.download_row)
+
+    @staticmethod
+    def model_label(model):
+        location = installed_location(model)
+        if location is None:
+            status = f"ダウンロード {model['size'] / 1_000_000:.0f} MB"
+        elif location == user_models_directory():
+            status = "ダウンロード済み"
+        else:
+            status = "同梱"
+        return f"{model['label']} — {status}"
+
+    def select_model_quietly(self, index):
+        self.updating_models = True
+        self.model_list.splice(0, self.model_list.get_n_items(), [self.model_label(m) for m in self.catalog])
+        self.rows["zenzaiModel"].set_selected(index)
+        self.updating_models = False
+
+    def on_model_selected(self, row, _):
+        index = row.get_selected()
+        if self.updating_models or index == self.model_index or index >= len(self.catalog):
+            return
+        model = self.catalog[index]
+        if installed_location(model) is not None:
+            self.model_index = index
+            self.set_value("zenzaiModel", model["id"])
+            return
+        # Keep the current model selected until the download has finished.
+        self.select_model_quietly(self.model_index)
+        self.confirm_download(model, index)
+
+    def confirm_download(self, model, index):
+        body = f"{model['size'] / 1_000_000:.0f} MB を Hugging Face からダウンロードします。ライセンス: {model['license']}"
+        if model["license"] != "Apache-2.0":
+            body += "\n旧世代のモデルです。ほかの人に配布する場合は CC BY-SA 4.0 に従ってください。"
+        dialog = Adw.AlertDialog(heading=f"{model['label']} をダウンロードしますか？", body=body)
+        dialog.add_response("cancel", "キャンセル")
+        dialog.add_response("download", "ダウンロード")
+        dialog.set_response_appearance("download", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("download")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", lambda _d, response: response == "download" and self.start_download(model, index))
+        dialog.present(self)
+
+    def start_download(self, model, index):
+        self.cancel_download = threading.Event()
+        self.rows["zenzaiModel"].set_sensitive(False)
+        self.download_row.set_title(f"{model['label']} をダウンロード中")
+        self.download_bar.set_fraction(0)
+        self.download_row.set_visible(True)
+        last_percent = [-1]
+
+        def progress(done, total):
+            percent = done * 100 // max(total, 1)
+            if percent != last_percent[0]:
+                last_percent[0] = percent
+                GLib.idle_add(self.show_progress, done, total)
+
+        def work(cancelled):
+            try:
+                download_model(model, progress, cancelled)
+                GLib.idle_add(self.download_finished, model, index, None)
+            except Exception as error:  # reported in the window
+                GLib.idle_add(self.download_finished, model, index, error)
+
+        threading.Thread(target=work, args=(self.cancel_download,), daemon=True).start()
+
+    def show_progress(self, done, total):
+        self.download_bar.set_fraction(done / max(total, 1))
+        self.download_bar.set_text(f"{done / 1_000_000:.0f} / {total / 1_000_000:.0f} MB")
+        return GLib.SOURCE_REMOVE
+
+    def download_finished(self, model, index, error):
+        self.cancel_download = None
+        self.download_row.set_visible(False)
+        self.rows["zenzaiModel"].set_sensitive(True)
+        if error is None:
+            self.model_index = index
+            self.select_model_quietly(index)
+            self.set_value("zenzaiModel", model["id"])
+            self.toasts.add_toast(Adw.Toast(title=f"{model['label']} を使います (次の入力から)"))
+        else:
+            self.select_model_quietly(self.model_index)
+            message = "キャンセルしました" if isinstance(error, DownloadCancelled) else f"ダウンロードできませんでした: {error}"
+            self.toasts.add_toast(Adw.Toast(title=message))
+        return GLib.SOURCE_REMOVE
 
     # Rows are connected after their initial value is set, so building the
     # window never writes the file.
@@ -236,12 +433,47 @@ def self_test(application):
     assert saved["zenzaiInferenceLimit"] == 3, saved
     SettingsWindow.request_learning_reset()
     assert reset_request_file().exists()
-    print(f"self-test ok: {len(window.rows)} settings rows saved to config.json")
+
+    # Model selector: every catalog model is listed; picking an installed one
+    # saves it, picking a missing one keeps the current model (and would ask
+    # before downloading).
+    models = window.rows["zenzaiModel"]
+    ids = [model["id"] for model in window.catalog]
+    assert "zenz-v3.2-small" in ids and "zenz-v3.2-xsmall" in ids, ids
+    fake = user_models_directory() / "zenz-v3.2-xsmall"
+    fake.mkdir(parents=True)
+    (fake / MODEL_FILE).write_bytes(b"")
+    window.select_model_quietly(window.model_index)
+    assert "ダウンロード済み" in window.model_list.get_string(ids.index("zenz-v3.2-xsmall"))
+    models.set_selected(ids.index("zenz-v3.2-xsmall"))
+    assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
+    window.confirm_download = lambda model, index: None
+    models.set_selected(ids.index("zenz-v3.1-small"))
+    assert models.get_selected() == ids.index("zenz-v3.2-xsmall"), "a missing model must not be selected yet"
+    assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
+    print(f"self-test ok: {len(window.rows)} settings rows, {len(ids)} models")
     shutil.rmtree(config_file().parent)
     application.quit()
 
 
+def download_from_command_line(model_id):
+    model = next((m for m in load_catalog() if m["id"] == model_id), None)
+    if model is None:
+        print(f"unknown model {model_id}; choose from: {', '.join(m['id'] for m in load_catalog())}", file=sys.stderr)
+        return 2
+
+    def progress(done, total):
+        print(f"\r{done / 1_000_000:.0f} / {total / 1_000_000:.0f} MB", end="", file=sys.stderr)
+
+    path = download_model(model, progress)
+    print(f"\nsaved {path}", file=sys.stderr)
+    return 0
+
+
 def main():
+    if "--download" in sys.argv:
+        index = sys.argv.index("--download")
+        return download_from_command_line(sys.argv[index + 1] if index + 1 < len(sys.argv) else "")
     application = Adw.Application(
         application_id="org.freedesktop.IBus.AzooKey.Setup",
         flags=Gio.ApplicationFlags.NON_UNIQUE if "--self-test" in sys.argv else Gio.ApplicationFlags.DEFAULT_FLAGS,

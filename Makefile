@@ -12,7 +12,9 @@
 VERSION      := 0.1.2
 PREFIX       ?= /usr
 DESTDIR      ?=
-MODEL        ?= small
+# A model id from data/models.json to bundle (small/xsmall mean zenz-v3.2).
+MODEL        ?= zenz-v3.2-small
+MODEL_ID     := $(if $(filter small xsmall,$(MODEL)),zenz-v3.2-$(MODEL),$(MODEL))
 CONFIG       ?= release
 # 1: build llama.cpp for any x86-64-v3 CPU instead of this machine's CPU.
 LLAMA_PORTABLE ?= 0
@@ -44,7 +46,7 @@ build/lib/.llama-$(LLAMA_MODE): scripts/build-llama.sh
 	LLAMA_PORTABLE=$(LLAMA_PORTABLE) ./scripts/build-llama.sh
 
 model:
-	./scripts/fetch-model.sh $(MODEL)
+	./scripts/fetch-model.sh $(MODEL_ID)
 
 # The Swift runtime is linked statically so the installed engine does not
 # depend on the toolchain. With C++ interop, libswiftCxx*.a only live in the
@@ -63,7 +65,8 @@ stage: engine model
 	strip --strip-unneeded $(STAGE)$(LIBDIR)/ibus-engine-azookey
 	cp -r $(BIN)/*.resources $(STAGE)$(LIBDIR)/
 	install -m 644 build/lib/*.so $(STAGE)$(LIBDIR)/lib/
-	cp -r build/models/zenz-v3.2-$(MODEL) $(STAGE)$(DATADIR)/models/
+	cp -r build/models/$(MODEL_ID) $(STAGE)$(DATADIR)/models/
+	install -m 644 data/models.json $(STAGE)$(DATADIR)/
 	install -m 644 data/icons/ibus-azookey.svg $(STAGE)$(DATADIR)/icons/
 	sed -e 's|@LIBDIR@|$(LIBDIR)|g' -e 's|@DATADIR@|$(DATADIR)|g' -e 's|@DOCDIR@|$(DOCDIR)|g' \
 		-e 's|@VERSION@|$(VERSION)|g' \

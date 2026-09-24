@@ -67,8 +67,12 @@ JIS キーボードでは、英数・無変換で直接入力に、かな・変�
 - **ライブ変換**：スペースで変換する代わりに、入力中に漢字を表示
 - **入力方式**：ローマ字、AZIK、かな入力（US / JIS 配列）
 - **句読点**（。、や ．，）、スペースの幅、バックスラッシュ / ¥ キー、1 ページの候補数
-- **Zenzai**：オン / オフ、精度と速度のバランス、変換の傾向を伝える短いプロフィール
-  （例：エンジニア）、カーソル前後の文章の利用
+- **Zenzai**：オン / オフ、モデル、精度と速度のバランス、変換の傾向を伝える短い
+  プロフィール（例：エンジニア）、カーソル前後の文章の利用
+
+パッケージには zenz-v3.2-small が入っています。ほかのモデル（軽量な zenz-v3.2-xsmall や
+旧版の v3.1）を選ぶと、確認のあと Hugging Face から `~/.local/share/ibus-azookey/models`
+にダウンロードされます。
 
 変更は、次にテキスト欄をクリックしたときに反映されます。
 
@@ -83,7 +87,7 @@ JIS キーボードでは、英数・無変換で直接入力に、かな・変�
 | `learning` | `inputAndOutput` | `inputAndOutput` 学習する、`onlyOutput` 学習結果を使うだけ、`nothing` 学習しない |
 | `liveConversion` | `false` | スペースで変換する代わりに、入力中に漢字を表示 |
 | `zenzaiEnabled` | `true` | ニューラル変換を使う |
-| `zenzaiModel` | `small` | `small` または `xsmall`（インストール済みのもの） |
+| `zenzaiModel` | `zenz-v3.2-small` | `zenz-v3.2-small`、`zenz-v3.2-xsmall`、`zenz-v3.1-small`、`zenz-v3.1-xsmall`。同梱以外は設定ウィンドウで先にダウンロードが必要 |
 | `zenzaiInferenceLimit` | `5` | 大きいほど遅くなるが、精度が上がることがある |
 | `zenzaiProfile` | `""` | 変換の傾向を伝える短いプロフィール |
 | `useSurroundingText` | `true` | カーソル前後の文章を Zenzai の文脈に使う |

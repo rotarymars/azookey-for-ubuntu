@@ -46,7 +46,7 @@ jobs:
           path: |
             .deps
             build/models
-          key: deps-${{ hashFiles('scripts/build-llama.sh', 'scripts/fetch-model.sh') }}
+          key: deps-${{ hashFiles('scripts/build-llama.sh', 'scripts/fetch-model.sh', 'data/models.json') }}
 
       - name: Unit tests
         run: make test

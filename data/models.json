@@ -1,0 +1,46 @@
+[
+  {
+    "id": "zenz-v3.2-small",
+    "label": "zenz-v3.2-small (高精度・推奨)",
+    "repo": "Miwa-Keita/zenz-v3.2-small-gguf",
+    "revision": "c67e03e07d215c869f591b274c1631170d3e11fe",
+    "file": "ggml-model-Q5_K_M.gguf",
+    "sha256": "29c223d4c23327b80fd13ebb5ab2555057a46317997d5da391584ffbef0db673",
+    "size": 73871936,
+    "license": "Apache-2.0",
+    "rightContext": true
+  },
+  {
+    "id": "zenz-v3.2-xsmall",
+    "label": "zenz-v3.2-xsmall (軽量・高速)",
+    "repo": "Miwa-Keita/zenz-v3.2-xsmall-gguf",
+    "revision": "4f5423f0fad41a73b1242eb96fe5c12ae4fdca83",
+    "file": "ggml-model-Q5_K_M.gguf",
+    "sha256": "00c64b3d318045a708d0cad5434faccab10f5481a49e6362864551fd0995fa58",
+    "size": 20970304,
+    "license": "Apache-2.0",
+    "rightContext": true
+  },
+  {
+    "id": "zenz-v3.1-small",
+    "label": "zenz-v3.1-small (旧版)",
+    "repo": "Miwa-Keita/zenz-v3.1-small-gguf",
+    "revision": "ddf6e44b2e05ab7ea9a3e31559c5e7948761365c",
+    "file": "ggml-model-Q5_K_M.gguf",
+    "sha256": "4de930c06bef8c263aa1aa40684af206db4ce1b96375b3b8ed0ea508e0b14f6c",
+    "size": 73871968,
+    "license": "CC-BY-SA-4.0",
+    "rightContext": false
+  },
+  {
+    "id": "zenz-v3.1-xsmall",
+    "label": "zenz-v3.1-xsmall (旧版・軽量)",
+    "repo": "Miwa-Keita/zenz-v3.1-xsmall-gguf",
+    "revision": "5c0c4db8c8cc66a6ef01520475bebd56b41f6236",
+    "file": "ggml-model-Q5_K_M.gguf",
+    "sha256": "189638370c43292fd54ba5e83854b24887ddd57e8914e19095514e663f60c7f5",
+    "size": 20970304,
+    "license": "CC-BY-SA-4.0",
+    "rightContext": false
+  }
+]

@@ -1,55 +1,58 @@
 #!/usr/bin/env bash
-# Download a Zenzai model (zenz-v3.2, Apache-2.0, by Miwa Keita) from Hugging
-# Face, pinned to a repository commit and verified by SHA-256.
+# Download a Zenzai model listed in data/models.json from Hugging Face, pinned
+# to a repository commit and verified by SHA-256.
 #
-# Usage: scripts/fetch-model.sh [small|xsmall]   (default: small)
-# Output: build/models/zenz-v3.2-<variant>/ggml-model-Q5_K_M.gguf
+# Usage: scripts/fetch-model.sh [MODEL_ID]   (default: zenz-v3.2-small;
+#        "small" and "xsmall" mean the zenz-v3.2 models)
+# Output: build/models/<MODEL_ID>/ggml-model-Q5_K_M.gguf plus LICENSE and SOURCE
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VARIANT="${1:-${ZENZ_VARIANT:-small}}"
-
-case "$VARIANT" in
-    small)
-        REPO="Miwa-Keita/zenz-v3.2-small-gguf"
-        REVISION="c67e03e07d215c869f591b274c1631170d3e11fe"
-        SHA256="29c223d4c23327b80fd13ebb5ab2555057a46317997d5da391584ffbef0db673"
-        ;;
-    xsmall)
-        REPO="Miwa-Keita/zenz-v3.2-xsmall-gguf"
-        REVISION="4f5423f0fad41a73b1242eb96fe5c12ae4fdca83"
-        SHA256="00c64b3d318045a708d0cad5434faccab10f5481a49e6362864551fd0995fa58"
-        ;;
-    *)
-        echo "unknown model variant: $VARIANT (expected small or xsmall)" >&2
-        exit 2
-        ;;
+ID="${1:-${ZENZ_MODEL:-zenz-v3.2-small}}"
+case "$ID" in
+    small | xsmall) ID="zenz-v3.2-$ID" ;;
 esac
 
-DEST="$ROOT/build/models/zenz-v3.2-$VARIANT"
-FILE="$DEST/ggml-model-Q5_K_M.gguf"
+# REPO REVISION FILE SHA256 LICENSE from the catalog
+read -r REPO REVISION FILE SHA256 LICENSE < <(python3 - "$ROOT/data/models.json" "$ID" <<'EOF'
+import json, sys
+catalog, wanted = sys.argv[1], sys.argv[2]
+for model in json.load(open(catalog, encoding="utf-8")):
+    if model["id"] == wanted:
+        print(model["repo"], model["revision"], model["file"], model["sha256"], model["license"])
+        break
+else:
+    sys.exit(f"unknown model {wanted}; see data/models.json")
+EOF
+)
 
-if [ -f "$FILE" ] && echo "$SHA256  $FILE" | sha256sum -c --status; then
-    echo ">> $FILE is up to date"
+DEST="$ROOT/build/models/$ID"
+TARGET="$DEST/$FILE"
+
+if [ -f "$TARGET" ] && echo "$SHA256  $TARGET" | sha256sum -c --status; then
+    echo ">> $TARGET is up to date"
     exit 0
 fi
 
 mkdir -p "$DEST"
 echo ">> downloading $REPO@$REVISION"
-curl -fL --retry 3 -o "$FILE.part" \
-    "https://huggingface.co/$REPO/resolve/$REVISION/ggml-model-Q5_K_M.gguf"
-echo "$SHA256  $FILE.part" | sha256sum -c -
-mv "$FILE.part" "$FILE"
+curl -fL --retry 3 -o "$TARGET.part" "https://huggingface.co/$REPO/resolve/$REVISION/$FILE"
+echo "$SHA256  $TARGET.part" | sha256sum -c -
+mv "$TARGET.part" "$TARGET"
 
-# The model repositories only carry a license tag, so ship the license text and
-# the provenance next to the weights (Apache-2.0 section 4 requires the former).
-cp "$ROOT/data/licenses/Apache-2.0.txt" "$DEST/LICENSE"
+# The model repositories only carry a license tag, so ship the license and the
+# provenance next to the weights.
+if [ "$LICENSE" = Apache-2.0 ]; then
+    cp "$ROOT/data/licenses/Apache-2.0.txt" "$DEST/LICENSE"
+else
+    echo "$LICENSE: https://creativecommons.org/licenses/by-sa/4.0/" > "$DEST/LICENSE"
+fi
 cat > "$DEST/SOURCE" <<EOF
 Model:    $REPO
 Revision: $REVISION
-File:     ggml-model-Q5_K_M.gguf (SHA-256 $SHA256)
+File:     $FILE (SHA-256 $SHA256)
 Author:   Miwa Keita (https://huggingface.co/Miwa-Keita)
-License:  Apache-2.0 (see LICENSE)
+License:  $LICENSE (see LICENSE)
 Changes:  none; redistributed unmodified.
 EOF
-echo ">> saved $FILE"
+echo ">> saved $TARGET"

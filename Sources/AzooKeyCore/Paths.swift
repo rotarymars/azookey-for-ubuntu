@@ -6,7 +6,9 @@ import Foundation
 ///   /usr/lib/ibus-azookey/ibus-engine-azookey       the engine
 ///   /usr/lib/ibus-azookey/*.resources               dictionaries (SwiftPM bundles)
 ///   /usr/lib/ibus-azookey/lib/                      llama.cpp libraries
-///   /usr/share/ibus-azookey/models/zenz-v3.2-*/     Zenzai models
+///   /usr/share/ibus-azookey/models/<id>/            bundled Zenzai model
+///   /usr/share/ibus-azookey/models.json             model catalog
+///   ~/.local/share/ibus-azookey/models/<id>/        models downloaded in settings
 public enum Paths {
     static let appName = "ibus-azookey"
 
@@ -71,14 +73,19 @@ public enum Paths {
             .appendingPathComponent(appName, isDirectory: true)
     }
 
-    /// Directory holding `ggml-model-Q5_K_M.gguf` for the given model variant.
-    public static func modelDirectory(for model: Settings.ZenzaiModel) -> URL {
+    /// Directory holding `ggml-model-Q5_K_M.gguf` for a model id: the user's
+    /// downloads first, then the models installed with the package. When
+    /// neither has it, the installed location (for error messages).
+    public static func modelDirectory(for id: String) -> URL {
         if let override = environment["AZOOKEY_IBUS_MODEL_DIR"] {
             return URL(fileURLWithPath: override, isDirectory: true)
         }
-        return sharedDataDirectory
-            .appendingPathComponent("models", isDirectory: true)
-            .appendingPathComponent(model.directoryName, isDirectory: true)
+        let candidates = [dataDirectory, sharedDataDirectory].map {
+            $0.appendingPathComponent("models", isDirectory: true).appendingPathComponent(id, isDirectory: true)
+        }
+        return candidates.first {
+            FileManager.default.fileExists(atPath: $0.appendingPathComponent(modelFileName).path)
+        } ?? candidates[1]
     }
 
     public static let modelFileName = "ggml-model-Q5_K_M.gguf"

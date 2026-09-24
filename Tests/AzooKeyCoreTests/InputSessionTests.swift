@@ -216,4 +216,20 @@ final class Typist {
         typist.press(Keysym.space)
         #expect(typist.preedit == "記者")
     }
+
+    // MARK: Models
+
+    // Here rather than in ModelCatalogTests: it sets AZOOKEY_IBUS_DATA_DIR, which
+    // only this serialized suite may touch.
+    @Test func downloadedModelsTakePriority() throws {
+        let data = FileManager.default.temporaryDirectory.appendingPathComponent("azookey-models-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: data) }
+        setenv("AZOOKEY_IBUS_DATA_DIR", data.path, 1)
+        let downloaded = data.appendingPathComponent("models/zenz-v3.1-xsmall", isDirectory: true)
+        #expect(Paths.modelDirectory(for: "zenz-v3.1-xsmall") != downloaded)
+
+        try FileManager.default.createDirectory(at: downloaded, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: downloaded.appendingPathComponent(Paths.modelFileName).path, contents: Data())
+        #expect(Paths.modelDirectory(for: "zenz-v3.1-xsmall").standardizedFileURL == downloaded.standardizedFileURL)
+    }
 }
