@@ -271,13 +271,17 @@ def main():
     client.cancel()
 
     # Models chosen in the settings window. run.sh put zenz-v3.2-xsmall where
-    # downloads go and checks the engine log for which model was loaded.
+    # downloads go and a copy of it elsewhere as a local model, and checks the
+    # engine log for which model was loaded.
     downloaded = Path(os.environ["XDG_DATA_HOME"]) / "ibus-azookey" / "models" / "zenz-v3.2-xsmall"
     if downloaded.exists():
-        for model in ("zenz-v3.2-xsmall", "zenz-v3.1-small"):  # downloaded, then missing
-            apply_config({"zenzaiModel": model})
+        local = {"zenzaiModel": "local", "zenzaiLocalModelPath": os.environ["E2E_LOCAL_MODEL"]}
+        # Downloaded, a file of the user's own, then a missing one.
+        for settings in ({"zenzaiModel": "zenz-v3.2-xsmall"}, local, {"zenzaiModel": "zenz-v3.1-small"}):
+            apply_config(settings)
             converted = conversion_of("kyouhaiitenki")
-            check(f"converts with zenzaiModel={model}", converted not in ("", "きょうはいいてんき"), converted)
+            check(f"converts with zenzaiModel={settings['zenzaiModel']}",
+                  converted not in ("", "きょうはいいてんき"), converted)
         apply_config({})
 
     print(f"{failures} failure(s)")

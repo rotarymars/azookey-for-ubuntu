@@ -8,7 +8,8 @@ engine's status menu has a "設定…" item for it.
 
 Zenzai models listed in data/models.json that are not installed are
 downloaded when selected, into ~/.local/share/ibus-azookey/models, and checked
-against the catalog's SHA-256.
+against the catalog's SHA-256. A GGUF file of your own (for example a
+fine-tuned zenz model) can be chosen as well.
 
 --self-test builds the window without showing it and checks that changes are
 saved (needs a display, writes into a temporary directory).
@@ -55,6 +56,7 @@ PUNCTUATION = [
     ("periodAndComma", "．，"),
 ]
 MODEL_FILE = "ggml-model-Q5_K_M.gguf"
+LOCAL_MODEL = "local"  # ModelCatalog.localModelID
 
 
 def xdg_directory(override, variable, fallback):
@@ -98,6 +100,14 @@ def installed_location(model):
         if (root / model["id"] / MODEL_FILE).exists():
             return root
     return None
+
+
+def is_gguf(path):
+    try:
+        with open(path, "rb") as file:
+            return file.read(4) == b"GGUF"
+    except OSError:
+        return False
 
 
 def apache_license_text():
@@ -285,16 +295,28 @@ class SettingsWindow(Adw.ApplicationWindow):
         selected = self.settings.get("zenzaiModel", "zenz-v3.2-small")
         if selected in ("small", "xsmall"):
             selected = f"zenz-v3.2-{selected}"
-        self.model_list = Gtk.StringList.new([self.model_label(model) for model in self.catalog])
+        self.model_list = Gtk.StringList.new(self.model_labels())
         row = Adw.ComboRow(
             title="モデル", subtitle="インストールされていないモデルは、選ぶとダウンロードします", model=self.model_list)
-        ids = [model["id"] for model in self.catalog]
+        ids = [model["id"] for model in self.catalog] + [LOCAL_MODEL]
         if selected in ids:
             row.set_selected(ids.index(selected))
         self.model_index = row.get_selected()
         row.connect("notify::selected", self.on_model_selected)
         self.rows["zenzaiModel"] = row
         group.add(row)
+
+        # Shown while the local model is selected.
+        self.local_file_row = Adw.ActionRow(title="モデルファイル (GGUF)")
+        choose = Gtk.Button(label="選択…", valign=Gtk.Align.CENTER)
+        choose.connect("clicked", lambda _: self.choose_local_model())
+        self.local_file_row.add_suffix(choose)
+        group.add(self.local_file_row)
+        self.local_right_context_row = self.switch_row(
+            "zenzaiLocalModelRightContext", "カーソルの後ろの文章も渡す",
+            "zenz-v3.2 系のモデルだけオン。zenz-v3.1 から fine-tune したモデルはオフにします")
+        group.add(self.local_right_context_row)
+        self.update_local_rows()
 
         self.download_row = Adw.ActionRow(visible=False)
         self.download_bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER, hexpand=True, show_text=True)
@@ -303,6 +325,28 @@ class SettingsWindow(Adw.ApplicationWindow):
         self.download_row.add_suffix(self.download_bar)
         self.download_row.add_suffix(cancel)
         group.add(self.download_row)
+
+    def model_labels(self):
+        path = self.settings.get("zenzaiLocalModelPath", "")
+        local = f"自分のモデル — {Path(path).name}" if path else "自分のモデル (ローカルファイルを選ぶ)"
+        return [self.model_label(model) for model in self.catalog] + [local]
+
+    def local_model_ready(self):
+        path = self.settings.get("zenzaiLocalModelPath", "")
+        return bool(path) and Path(path).is_file()
+
+    def update_local_rows(self):
+        local = self.model_index == len(self.catalog)
+        path = self.settings.get("zenzaiLocalModelPath", "")
+        if not path:
+            subtitle = "未選択"
+        elif Path(path).is_file():
+            subtitle = path
+        else:
+            subtitle = f"{path} (見つかりません。既定のモデルを使います)"
+        self.local_file_row.set_subtitle(GLib.markup_escape_text(subtitle))
+        self.local_file_row.set_visible(local)
+        self.local_right_context_row.set_visible(local)
 
     @staticmethod
     def model_label(model):
@@ -317,22 +361,67 @@ class SettingsWindow(Adw.ApplicationWindow):
 
     def select_model_quietly(self, index):
         self.updating_models = True
-        self.model_list.splice(0, self.model_list.get_n_items(), [self.model_label(m) for m in self.catalog])
+        self.model_list.splice(0, self.model_list.get_n_items(), self.model_labels())
         self.rows["zenzaiModel"].set_selected(index)
         self.updating_models = False
+        self.update_local_rows()
 
     def on_model_selected(self, row, _):
         index = row.get_selected()
-        if self.updating_models or index == self.model_index or index >= len(self.catalog):
+        if self.updating_models or index == self.model_index or index > len(self.catalog):
+            return
+        if index == len(self.catalog):
+            if self.local_model_ready():
+                self.model_index = index
+                self.set_value("zenzaiModel", LOCAL_MODEL)
+                self.update_local_rows()
+            else:
+                # Keep the current model selected until a file is chosen.
+                self.select_model_quietly(self.model_index)
+                self.choose_local_model()
             return
         model = self.catalog[index]
         if installed_location(model) is not None:
             self.model_index = index
             self.set_value("zenzaiModel", model["id"])
+            self.update_local_rows()
             return
         # Keep the current model selected until the download has finished.
         self.select_model_quietly(self.model_index)
         self.confirm_download(model, index)
+
+    def choose_local_model(self):
+        gguf = Gtk.FileFilter(name="GGUF モデル (*.gguf)")
+        gguf.add_pattern("*.gguf")
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(gguf)
+        dialog = Gtk.FileDialog(title="zenz モデルのファイルを選ぶ", filters=filters, default_filter=gguf)
+        current = self.settings.get("zenzaiLocalModelPath", "")
+        if current and Path(current).parent.is_dir():
+            dialog.set_initial_folder(Gio.File.new_for_path(str(Path(current).parent)))
+
+        def finished(dialog, result):
+            try:
+                file = dialog.open_finish(result)
+            except GLib.Error:  # dismissed
+                return
+            if file is not None and file.get_path():
+                self.use_local_model(file.get_path())
+
+        dialog.open(self, None, finished)
+
+    def use_local_model(self, path):
+        """Selects a GGUF file of the user's own. Returns whether it was accepted."""
+        path = str(Path(path).resolve())
+        if not is_gguf(path):
+            self.toasts.add_toast(Adw.Toast(title=f"GGUF ファイルではありません: {Path(path).name}"))
+            return False
+        self.set_value("zenzaiLocalModelPath", path)
+        self.model_index = len(self.catalog)
+        self.select_model_quietly(self.model_index)
+        self.set_value("zenzaiModel", LOCAL_MODEL)
+        self.toasts.add_toast(Adw.Toast(title=f"{Path(path).name} を使います (次の入力から)"))
+        return True
 
     def confirm_download(self, model, index):
         body = f"{model['size'] / 1_000_000:.0f} MB を Hugging Face からダウンロードします。ライセンス: {model['license']}"
@@ -383,6 +472,7 @@ class SettingsWindow(Adw.ApplicationWindow):
             self.model_index = index
             self.select_model_quietly(index)
             self.set_value("zenzaiModel", model["id"])
+            self.update_local_rows()
             self.toasts.add_toast(Adw.Toast(title=f"{model['label']} を使います (次の入力から)"))
         else:
             self.select_model_quietly(self.model_index)
@@ -487,6 +577,34 @@ def self_test(application):
     models.set_selected(ids.index("zenz-v3.1-small"))
     assert models.get_selected() == ids.index("zenz-v3.2-xsmall"), "a missing model must not be selected yet"
     assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
+
+    # Local model: listed last; choosing it without a file opens the file
+    # chooser and keeps the current model; a GGUF file is accepted, others not.
+    local_index = len(ids)
+    assert "自分のモデル" in window.model_list.get_string(local_index)
+    assert not window.local_file_row.get_visible()
+    chooser_opened = []
+    window.choose_local_model = lambda: chooser_opened.append(True)
+    models.set_selected(local_index)
+    assert chooser_opened and models.get_selected() == ids.index("zenz-v3.2-xsmall")
+    not_gguf = user_models_directory() / "notes.gguf"
+    not_gguf.write_bytes(b"hello")
+    assert not window.use_local_model(not_gguf)
+    mine = user_models_directory() / "my-zenz.gguf"
+    mine.write_bytes(b"GGUF\x03\x00\x00\x00")
+    assert window.use_local_model(mine)
+    saved = json.loads(config_file().read_text(encoding="utf-8"))
+    assert saved["zenzaiModel"] == LOCAL_MODEL and saved["zenzaiLocalModelPath"] == str(mine.resolve()), saved
+    assert models.get_selected() == local_index and "my-zenz.gguf" in window.model_list.get_string(local_index)
+    assert window.local_file_row.get_visible() and window.local_right_context_row.get_visible()
+    window.local_right_context_row.set_active(True)
+    assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiLocalModelRightContext"] is True
+    models.set_selected(ids.index("zenz-v3.2-xsmall"))
+    assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
+    assert not window.local_file_row.get_visible()
+    models.set_selected(local_index)  # the file is known now: no chooser
+    assert len(chooser_opened) == 1
+    assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == LOCAL_MODEL
 
     # Version row: the engine next to this script reports it (none in the source tree).
     version = window.version_label.get_label()

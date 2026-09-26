@@ -33,24 +33,10 @@ public final class ConverterHost {
         }
     }
 
-    /// The Zenzai model to use under the current settings: the selected one,
-    /// else the bundled one, else none (dictionary only).
-    var zenzaiModelDirectory: URL? {
-        guard Config.settings.zenzaiEnabled else {
-            return nil
-        }
-        let selected = Config.settings.zenzaiModel
-        for id in [selected, ModelCatalog.defaultModelID] {
-            let directory = Paths.modelDirectory(for: id)
-            if FileManager.default.fileExists(atPath: directory.appendingPathComponent(Paths.modelFileName).path) {
-                if id != selected {
-                    Log.error("Zenzai model \(selected) is not installed; using \(id)")
-                }
-                return directory
-            }
-        }
-        Log.error("no Zenzai model installed; using the dictionary only")
-        return nil
+    /// The Zenzai model to use under the current settings, or nil for the
+    /// dictionary only.
+    var zenzaiModel: ResolvedModel? {
+        Config.settings.zenzaiEnabled ? ModelCatalog.resolve(Config.settings) : nil
     }
 }
 
@@ -141,7 +127,7 @@ public final class InputSession {
     private let sessionID: KanaKanjiConverter.ConversionSessionID
     private let textContext = TextContext()
     private var manager: SegmentsManager
-    private var managerModelDirectory: URL?
+    private var managerModel: ResolvedModel?
     /// Selection in the candidate list as of the last snapshot; number keys pick
     /// from the page that contains it.
     private var lastSelectionIndex = 0
@@ -149,14 +135,14 @@ public final class InputSession {
     init(host: ConverterHost) {
         self.host = host
         self.sessionID = host.converter.createSession()
-        self.managerModelDirectory = host.zenzaiModelDirectory
-        self.manager = Self.makeManager(host: host, modelDirectory: managerModelDirectory)
+        self.managerModel = host.zenzaiModel
+        self.manager = Self.makeManager(host: host, model: managerModel)
         self.manager.delegate = textContext
-        Self.logModel(managerModelDirectory)
+        Self.logModel(managerModel)
     }
 
-    private static func logModel(_ directory: URL?) {
-        Log.info("Zenzai model: \(directory?.path ?? "none (dictionary only)")")
+    private static func logModel(_ model: ResolvedModel?) {
+        Log.info("Zenzai model: \(model?.file.path ?? "none (dictionary only)")")
     }
 
     /// Releases the conversion session on the shared converter.
@@ -164,12 +150,16 @@ public final class InputSession {
         host.converter.removeSession(sessionID)
     }
 
-    private static func makeManager(host: ConverterHost, modelDirectory: URL?) -> SegmentsManager {
+    private static func makeManager(host: ConverterHost, model: ResolvedModel?) -> SegmentsManager {
         SegmentsManager(
             kanaKanjiConverter: host.converter,
             applicationDirectoryURL: Paths.memoryDirectory,
             containerURL: nil,
-            context: .init(useZenzai: modelDirectory != nil, resourcesDirectoryURL: modelDirectory)
+            context: .init(
+                useZenzai: model != nil,
+                resourcesDirectoryURL: model?.file.deletingLastPathComponent(),
+                zenzaiWeightURL: model?.file
+            )
         )
     }
 
@@ -190,7 +180,7 @@ public final class InputSession {
     public func setTextContext(left: String?, right: String?) {
         let enabled = Config.settings.useSurroundingText
         textContext.left = enabled ? left : nil
-        textContext.right = enabled && ModelCatalog.supportsRightContext(Config.settings.zenzaiModel) ? right : nil
+        textContext.right = enabled && managerModel?.rightContext == true ? right : nil
     }
 
     /// Picks up settings that need a new SegmentsManager (the Zenzai model).
@@ -199,12 +189,12 @@ public final class InputSession {
         guard !isComposing else {
             return
         }
-        let modelDirectory = host.zenzaiModelDirectory
-        if modelDirectory != managerModelDirectory {
-            managerModelDirectory = modelDirectory
-            manager = Self.makeManager(host: host, modelDirectory: modelDirectory)
+        let model = host.zenzaiModel
+        if model != managerModel {
+            managerModel = model
+            manager = Self.makeManager(host: host, model: model)
             manager.delegate = textContext
-            Self.logModel(modelDirectory)
+            Self.logModel(model)
         }
     }
 

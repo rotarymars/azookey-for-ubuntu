@@ -59,7 +59,12 @@ public struct Settings: Equatable, Sendable {
     /// Neural conversion with the zenz model.
     public var zenzaiEnabled = true
     /// A model id from models.json; the settings window downloads others on demand.
+    /// `ModelCatalog.localModelID` selects `zenzaiLocalModelPath` instead.
     public var zenzaiModel = ModelCatalog.defaultModelID
+    /// A GGUF file of your own, such as a fine-tuned zenz model.
+    public var zenzaiLocalModelPath = ""
+    /// The local model was trained on text after the cursor (zenz-v3.2 and later).
+    public var zenzaiLocalModelRightContext = false
     /// Upper bound of model evaluations per conversion (azooKey default: 5).
     public var zenzaiInferenceLimit = 5
     /// Short self-description that steers Zenzai, e.g. "エンジニア/Swift開発者".
@@ -80,7 +85,8 @@ public struct Settings: Equatable, Sendable {
 
 extension Settings: Codable {
     enum CodingKeys: String, CodingKey {
-        case learning, liveConversion, zenzaiEnabled, zenzaiModel, zenzaiInferenceLimit, zenzaiProfile
+        case learning, liveConversion, zenzaiEnabled, zenzaiModel, zenzaiLocalModelPath, zenzaiLocalModelRightContext
+        case zenzaiInferenceLimit, zenzaiProfile
         case useSurroundingText, inputStyle, punctuationStyle, typeBackSlash, typeHalfSpace, candidatePageSize
     }
 
@@ -94,6 +100,8 @@ extension Settings: Codable {
         self.liveConversion = value(.liveConversion, defaults.liveConversion)
         self.zenzaiEnabled = value(.zenzaiEnabled, defaults.zenzaiEnabled)
         self.zenzaiModel = ModelCatalog.normalizedID(value(.zenzaiModel, defaults.zenzaiModel))
+        self.zenzaiLocalModelPath = value(.zenzaiLocalModelPath, defaults.zenzaiLocalModelPath)
+        self.zenzaiLocalModelRightContext = value(.zenzaiLocalModelRightContext, defaults.zenzaiLocalModelRightContext)
         self.zenzaiInferenceLimit = max(1, min(value(.zenzaiInferenceLimit, defaults.zenzaiInferenceLimit), 50))
         self.zenzaiProfile = value(.zenzaiProfile, defaults.zenzaiProfile)
         self.useSurroundingText = value(.useSurroundingText, defaults.useSurroundingText)

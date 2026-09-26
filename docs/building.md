@@ -43,8 +43,9 @@ make e2e    # end-to-end test through a private ibus-daemon
   real IBus input context. Your desktop's IBus is not touched. It fails on any
   GLib assertion in the daemon or engine log.
 - `make e2e` also puts zenz-v3.2-xsmall where the settings window saves
-  downloaded models and checks that the engine switches to it, and falls back
-  to the bundled model when a missing one is selected.
+  downloaded models, and a copy of it elsewhere as a local model file, and
+  checks that the engine switches to each, and falls back to the bundled model
+  when a missing one is selected.
 - `build/stage/usr/lib/ibus-azookey/ibus-setup-azookey --self-test` checks the
   settings window without showing it, including the version it gets from the
   staged engine (needs a display; CI runs it under Xvfb). The copy in `tools/`

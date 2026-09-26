@@ -51,11 +51,10 @@ if useSession {
 @MainActor
 func typeThroughSession() {
     setenv("AZOOKEY_IBUS_DATA_DIR", workDirectory.path, 1)
-    if let modelPath {
-        setenv("AZOOKEY_IBUS_MODEL_DIR", URL(fileURLWithPath: modelPath).deletingLastPathComponent().path, 1)
-    }
     var settings = Settings()
     settings.zenzaiEnabled = modelPath != nil
+    settings.zenzaiModel = ModelCatalog.localModelID
+    settings.zenzaiLocalModelPath = modelPath.map { URL(fileURLWithPath: $0).path } ?? ""
     settings.zenzaiInferenceLimit = inferenceLimit
     Config.settings = settings
     let session = ConverterHost().makeSession()

@@ -38,10 +38,13 @@ export IBUS_COMPONENT_PATH="$TMP/component"
 export IBUS_ADDRESS="unix:path=$TMP/ibus.sock"
 mkdir -p "$IBUS_COMPONENT_PATH" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
 
-# A model "downloaded" by the settings window, to test switching models.
+# A model "downloaded" by the settings window, and one chosen as a local file
+# (named unlike the catalog files), to test switching models.
 if [ -n "${E2E_DOWNLOADED_MODEL:-}" ]; then
     mkdir -p "$XDG_DATA_HOME/ibus-azookey/models"
     cp -r "$E2E_DOWNLOADED_MODEL" "$XDG_DATA_HOME/ibus-azookey/models/"
+    export E2E_LOCAL_MODEL="$TMP/my-zenz.gguf"
+    cp "$E2E_DOWNLOADED_MODEL/ggml-model-Q5_K_M.gguf" "$E2E_LOCAL_MODEL"
 fi
 
 # The staged component points at /usr; aim it at the staged engine instead.
@@ -68,13 +71,19 @@ if grep -E "assertion .* failed|CRITICAL" "$TMP/daemon.log"; then
     echo "FAIL ibus-daemon or the engine logged GLib assertions (see above)"
     status=1
 fi
-# client.py switched to the downloaded model and then to a missing one.
+# client.py switched to the downloaded model, a local one and a missing one.
 if [ -n "${E2E_DOWNLOADED_MODEL:-}" ]; then
     downloaded="$XDG_DATA_HOME/ibus-azookey/models/$(basename "$E2E_DOWNLOADED_MODEL")"
     if grep -q "Zenzai model: $downloaded" "$TMP/daemon.log"; then
         echo "ok   the engine loaded the downloaded model"
     else
         echo "FAIL the engine never loaded the downloaded model"
+        status=1
+    fi
+    if grep -q "Zenzai model: $E2E_LOCAL_MODEL" "$TMP/daemon.log"; then
+        echo "ok   the engine loaded the local model file"
+    else
+        echo "FAIL the engine never loaded the local model file"
         status=1
     fi
     if grep -q "zenz-v3.1-small is not installed; using zenz-v3.2-small" "$TMP/daemon.log"; then

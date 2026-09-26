@@ -3,7 +3,9 @@
 // Copyright (c) 2025 Miwa Keita. MIT License; see THIRD_PARTY_NOTICES.md.
 // Changes: version string reported to the converter; the emoji TextReplacer is
 // built once instead of on every request (it re-parsed the emoji dictionary per
-// keystroke, about 80 ms each on a Ryzen 7 7735HS).
+// keystroke, about 80 ms each on a Ryzen 7 7735HS); the Zenzai weight file can
+// be given in Context (a model file of the user's own, not named
+// ggml-model-Q5_K_M.gguf).
 
 import Foundation
 import KanaKanjiConverterModuleWithDefaultDictionary
@@ -24,13 +26,15 @@ public final class SegmentsManager {
     /// テストなどの設定注入のための型。外部には設定を露出させない。
     public struct Context {
         public init() {}
-        public init(useZenzai: Bool, resourcesDirectoryURL: URL? = nil) {
+        public init(useZenzai: Bool, resourcesDirectoryURL: URL? = nil, zenzaiWeightURL: URL? = nil) {
             self.useZenzai = useZenzai
             self.resourcesDirectoryURL = resourcesDirectoryURL
+            self.zenzaiWeightURL = zenzaiWeightURL
         }
 
         var useZenzai: Bool = true
         var resourcesDirectoryURL: URL?
+        var zenzaiWeightURL: URL?
     }
 
     public weak var delegate: (any SegmentManagerDelegate)?
@@ -154,7 +158,8 @@ public final class SegmentsManager {
             return .off
         }
         return .on(
-            weight: self.resourcesDirectoryURL.appendingPathComponent("ggml-model-Q5_K_M.gguf", isDirectory: false),
+            weight: self.context.zenzaiWeightURL
+                ?? self.resourcesDirectoryURL.appendingPathComponent("ggml-model-Q5_K_M.gguf", isDirectory: false),
             inferenceLimit: Config.ZenzaiInferenceLimit().value,
             requestRichCandidates: requestRichCandidates,
             personalizationMode: self.zenzaiPersonalizationMode,
