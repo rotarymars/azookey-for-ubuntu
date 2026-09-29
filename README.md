@@ -81,7 +81,7 @@ same window opens from **⋮ → Preferences** next to azooKey in
 
 zenz-v3.2-small comes with the package. Choosing another model (the lighter
 zenz-v3.2-xsmall, the older v3.1 models, or zenz-v3.2-small 追加学習版, a
-fine-tune of zenz-v3.2-small by this project's author) downloads it into
+fine-tune of zenz-v3.2-small) downloads it into
 `~/.local/share/ibus-azookey/models` after asking. **自分のモデル** at the end
 of the list uses a GGUF file of your own instead, such as a zenz model you
 fine-tuned.
