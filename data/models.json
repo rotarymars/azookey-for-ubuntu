@@ -22,6 +22,18 @@
     "rightContext": true
   },
   {
+    "id": "zenz-v3.2-small-rotarymars",
+    "label": "zenz-v3.2-small 追加学習版 (rotarymars)",
+    "url": "https://github.com/rotarymars/azookey-for-ubuntu/releases/download/model-zenz-v3.2-small-rotarymars-1/zenz-v3.2-small-rotarymars-1.gguf",
+    "file": "zenz-v3.2-small-rotarymars-1.gguf",
+    "sha256": "a0771997b90e33e97c2543070f8089a925dbb65cd61ef34f4f7fa0a8f363c7f1",
+    "size": 73871840,
+    "license": "CC-BY-SA-4.0",
+    "rightContext": true,
+    "author": "rotarymars (https://github.com/rotarymars), fine-tuned from zenz-v3.2-small by Miwa Keita (https://huggingface.co/Miwa-Keita/zenz-v3.2-small-gguf, Apache-2.0)",
+    "changes": "fine-tuned on zenz-v2.5-dataset (Miwa Keita, CC BY-SA 4.0), 日本語Wikipedia入力誤りデータセット v2 (京都大学 言語メディア研究室; 田中佑, 村脇有吾, 河原大輔, 黒橋禎夫, 言語処理学会第27回年次大会, 2021; CC BY-SA 3.0, from Japanese Wikipedia's contributors), public-domain works from 青空文庫 and hand-written examples; quantized to Q5_K_M"
+  },
+  {
     "id": "zenz-v3.1-small",
     "label": "zenz-v3.1-small (旧版)",
     "repo": "Miwa-Keita/zenz-v3.1-small-gguf",

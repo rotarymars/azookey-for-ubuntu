@@ -80,7 +80,8 @@ same window opens from **⋮ → Preferences** next to azooKey in
   around the cursor
 
 zenz-v3.2-small comes with the package. Choosing another model (the lighter
-zenz-v3.2-xsmall, or the older v3.1 models) downloads it from Hugging Face into
+zenz-v3.2-xsmall, the older v3.1 models, or zenz-v3.2-small 追加学習版, a
+fine-tune of zenz-v3.2-small by this project's author) downloads it into
 `~/.local/share/ibus-azookey/models` after asking. **自分のモデル** at the end
 of the list uses a GGUF file of your own instead, such as a zenz model you
 fine-tuned.
@@ -99,7 +100,7 @@ the defaults below.
 | `learning` | `inputAndOutput` | `inputAndOutput` learns and uses learning, `onlyOutput` only uses it, `nothing` turns it off |
 | `liveConversion` | `false` | show kanji while typing instead of converting on Space |
 | `zenzaiEnabled` | `true` | neural conversion |
-| `zenzaiModel` | `zenz-v3.2-small` | `zenz-v3.2-small`, `zenz-v3.2-xsmall`, `zenz-v3.1-small` or `zenz-v3.1-xsmall`; others than the bundled one must be downloaded in the settings window first. `local` uses `zenzaiLocalModelPath` |
+| `zenzaiModel` | `zenz-v3.2-small` | `zenz-v3.2-small`, `zenz-v3.2-xsmall`, `zenz-v3.2-small-rotarymars`, `zenz-v3.1-small` or `zenz-v3.1-xsmall`; others than the bundled one must be downloaded in the settings window first. `local` uses `zenzaiLocalModelPath` |
 | `zenzaiLocalModelPath` | `""` | absolute path of a GGUF model file of your own |
 | `zenzaiLocalModelRightContext` | `false` | give the local model the text after the cursor (only for models based on zenz-v3.2) |
 | `zenzaiInferenceLimit` | `5` | higher is slower but can be more accurate |

@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -122,6 +123,21 @@ class DownloadCancelled(Exception):
     pass
 
 
+def model_url(model):
+    """A catalog entry's "url", else its Hugging Face file at the pinned revision."""
+    return model.get("url") or f"https://huggingface.co/{model['repo']}/resolve/{model['revision']}/{model['file']}"
+
+
+def model_source(model):
+    """The SOURCE file kept next to a downloaded model."""
+    origin = (f"URL:      {model['url']}\n" if model.get("url")
+              else f"Model:    {model['repo']}\nRevision: {model['revision']}\n")
+    return (f"{origin}File:     {model['file']} (SHA-256 {model['sha256']})\n"
+            f"Author:   {model.get('author', 'Miwa Keita (https://huggingface.co/Miwa-Keita)')}\n"
+            f"License:  {model['license']} (see LICENSE)\n"
+            f"Changes:  {model.get('changes', 'none; redistributed unmodified.')}\n")
+
+
 def download_model(model, progress=lambda done, total: None, cancelled=None):
     """Downloads into the user's models directory and verifies the SHA-256.
     Runs on a worker thread; `progress` gets bytes done and the total."""
@@ -129,11 +145,10 @@ def download_model(model, progress=lambda done, total: None, cancelled=None):
     destination.mkdir(parents=True, exist_ok=True)
     target = destination / MODEL_FILE
     partial = target.with_name(target.name + ".part")
-    url = f"https://huggingface.co/{model['repo']}/resolve/{model['revision']}/{model['file']}"
     digest = hashlib.sha256()
     done = 0
     try:
-        with urllib.request.urlopen(url, timeout=30) as response, open(partial, "wb") as out:
+        with urllib.request.urlopen(model_url(model), timeout=30) as response, open(partial, "wb") as out:
             total = int(response.headers.get("Content-Length") or model["size"])
             while chunk := response.read(1 << 16):
                 if cancelled is not None and cancelled.is_set():
@@ -153,12 +168,7 @@ def download_model(model, progress=lambda done, total: None, cancelled=None):
     else:
         (destination / "LICENSE").write_text(
             f"{model['license']}: https://creativecommons.org/licenses/by-sa/4.0/\n", encoding="utf-8")
-    (destination / "SOURCE").write_text(
-        f"Model:    {model['repo']}\nRevision: {model['revision']}\n"
-        f"File:     {model['file']} (SHA-256 {model['sha256']})\n"
-        f"Author:   Miwa Keita (https://huggingface.co/Miwa-Keita)\n"
-        f"License:  {model['license']}\nChanges:  none; redistributed unmodified.\n",
-        encoding="utf-8")
+    (destination / "SOURCE").write_text(model_source(model), encoding="utf-8")
     return target
 
 
@@ -424,9 +434,10 @@ class SettingsWindow(Adw.ApplicationWindow):
         return True
 
     def confirm_download(self, model, index):
-        body = f"{model['size'] / 1_000_000:.0f} MB を Hugging Face からダウンロードします。ライセンス: {model['license']}"
+        host = urllib.parse.urlsplit(model_url(model)).hostname
+        body = f"{model['size'] / 1_000_000:.0f} MB を {host} からダウンロードします。ライセンス: {model['license']}"
         if model["license"] != "Apache-2.0":
-            body += "\n旧世代のモデルです。ほかの人に配布する場合は CC BY-SA 4.0 に従ってください。"
+            body += "\nほかの人に配布する場合は CC BY-SA 4.0 に従ってください。"
         dialog = Adw.AlertDialog(heading=f"{model['label']} をダウンロードしますか？", body=body)
         dialog.add_response("cancel", "キャンセル")
         dialog.add_response("download", "ダウンロード")
@@ -577,6 +588,11 @@ def self_test(application):
     models.set_selected(ids.index("zenz-v3.1-small"))
     assert models.get_selected() == ids.index("zenz-v3.2-xsmall"), "a missing model must not be selected yet"
     assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
+    # Entries download from Hugging Face unless they give their own "url".
+    for model in window.catalog:
+        url = model_url(model)
+        assert url.startswith("https://") and url.endswith(model["file"]), url
+    assert model_url(window.catalog[0]).startswith("https://huggingface.co/")
 
     # Local model: listed last; choosing it without a file opens the file
     # chooser and keeps the current model; a GGUF file is accepted, others not.

@@ -10,6 +10,7 @@ endorsed by the azooKey project. It builds on the following components.
 | [azooKey_dictionary_storage](https://github.com/azooKey/azooKey_dictionary_storage) | system dictionary (installed data) | Apache-2.0 |
 | [azooKey_emoji_dictionary_storage](https://github.com/azooKey/azooKey_emoji_dictionary_storage) | emoji candidates (installed data) | no license file; see below |
 | [zenz-v3.2-small / xsmall](https://huggingface.co/Miwa-Keita/zenz-v3.2-small-gguf) by Miwa Keita | Zenzai model (installed data, unmodified) | Apache-2.0 |
+| zenz-v3.2-small 追加学習版 (`zenz-v3.2-small-rotarymars`), fine-tuned by rotarymars from zenz-v3.2-small | optional Zenzai model, downloaded from this repository's releases when chosen in settings; see below | CC-BY-SA-4.0 |
 | [llama.cpp](https://github.com/azooKey/llama.cpp) (azooKey fork, tag b4846) | model inference (shared libraries) | MIT |
 | [swift-algorithms](https://github.com/apple/swift-algorithms), [swift-collections](https://github.com/apple/swift-collections), [swift-numerics](https://github.com/apple/swift-numerics) | converter dependencies (linked) | Apache-2.0 |
 | [swift-tokenizers](https://github.com/ensan-hcl/swift-tokenizers) | converter dependency (linked) | Apache-2.0 |
@@ -20,6 +21,18 @@ endorsed by the azooKey project. It builds on the following components.
 
 The Apache License 2.0 text is in [data/licenses/Apache-2.0.txt](data/licenses/Apache-2.0.txt)
 and is installed next to the dictionary and the model.
+
+**zenz-v3.2-small 追加学習版:** fine-tuned from
+[zenz-v3.2-small](https://huggingface.co/Miwa-Keita/zenz-v3.2-small-gguf)
+(Miwa Keita, Apache-2.0) on
+[zenz-v2.5-dataset](https://huggingface.co/datasets/Miwa-Keita/zenz-v2.5-dataset)
+(Miwa Keita, CC BY-SA 4.0; its llm-jp-corpus part ODC-BY),
+日本語Wikipedia入力誤りデータセット v2 (京都大学 言語メディア研究室; 田中佑, 村脇有吾,
+河原大輔, 黒橋禎夫, 言語処理学会第27回年次大会, 2021; CC BY-SA 3.0, derived from
+Japanese Wikipedia's contributors), public-domain works from 青空文庫 and
+hand-written examples, then quantized to Q5_K_M. The model is shared under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). It is not
+part of the package; the settings window downloads it only when chosen.
 
 **Emoji dictionary:** the azooKey_emoji_dictionary_storage repository has no
 license file. It is generated from Mozc's `emoji_data.tsv` (BSD-3-Clause,

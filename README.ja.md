@@ -78,8 +78,8 @@ JIS キーボードでは、英数・無変換で直接入力に、かな・変�
   プロフィール（例：エンジニア）、カーソル前後の文章の利用
 
 パッケージには zenz-v3.2-small が入っています。ほかのモデル（軽量な zenz-v3.2-xsmall や
-旧版の v3.1）を選ぶと、確認のあと Hugging Face から `~/.local/share/ibus-azookey/models`
-にダウンロードされます。一覧の最後の **自分のモデル** では、fine-tune した zenz モデルなどの
+旧版の v3.1、作者が zenz-v3.2-small を追加学習した「zenz-v3.2-small 追加学習版」）を選ぶと、
+確認のあと `~/.local/share/ibus-azookey/models` にダウンロードされます。一覧の最後の **自分のモデル** では、fine-tune した zenz モデルなどの
 GGUF ファイルを選んで使えます。「カーソルの後ろの文章も渡す」は zenz-v3.2 を元にしたモデルのときだけオンにしてください。
 
 変更は、次にテキスト欄をクリックしたときに反映されます。
@@ -95,7 +95,7 @@ GGUF ファイルを選んで使えます。「カーソルの後ろの文章も
 | `learning` | `inputAndOutput` | `inputAndOutput` 学習する、`onlyOutput` 学習結果を使うだけ、`nothing` 学習しない |
 | `liveConversion` | `false` | スペースで変換する代わりに、入力中に漢字を表示 |
 | `zenzaiEnabled` | `true` | ニューラル変換を使う |
-| `zenzaiModel` | `zenz-v3.2-small` | `zenz-v3.2-small`、`zenz-v3.2-xsmall`、`zenz-v3.1-small`、`zenz-v3.1-xsmall`。同梱以外は設定ウィンドウで先にダウンロードが必要。`local` なら `zenzaiLocalModelPath` を使う |
+| `zenzaiModel` | `zenz-v3.2-small` | `zenz-v3.2-small`、`zenz-v3.2-xsmall`、`zenz-v3.2-small-rotarymars`、`zenz-v3.1-small`、`zenz-v3.1-xsmall`。同梱以外は設定ウィンドウで先にダウンロードが必要。`local` なら `zenzaiLocalModelPath` を使う |
 | `zenzaiLocalModelPath` | `""` | 自分の GGUF モデルファイルの絶対パス |
 | `zenzaiLocalModelRightContext` | `false` | ローカルモデルにカーソルの後ろの文章も渡す（zenz-v3.2 を元にしたモデルのみ） |
 | `zenzaiInferenceLimit` | `5` | 大きいほど遅くなるが、精度が上がることがある |
