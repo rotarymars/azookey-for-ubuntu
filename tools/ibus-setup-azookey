@@ -103,6 +103,19 @@ def installed_location(model):
     return None
 
 
+def outdated(model):
+    """Whether the downloaded copy is an older file than the catalog's: the
+    SOURCE file written with it records the SHA-256 it was checked against.
+    Models installed with the package are always current."""
+    if installed_location(model) != user_models_directory():
+        return False
+    try:
+        source = (user_models_directory() / model["id"] / "SOURCE").read_text(encoding="utf-8")
+    except OSError:
+        return False  # placed there by hand
+    return model["sha256"] not in source
+
+
 def is_gguf(path):
     try:
         with open(path, "rb") as file:
@@ -326,6 +339,14 @@ class SettingsWindow(Adw.ApplicationWindow):
             "zenzaiLocalModelRightContext", "カーソルの後ろの文章も渡す",
             "zenz-v3.2 系のモデルだけオン。zenz-v3.1 から fine-tune したモデルはオフにします")
         group.add(self.local_right_context_row)
+
+        # Shown while the selected model has a newer version in the catalog.
+        self.update_row = Adw.ActionRow(title="新しい版があります")
+        self.update_button = Gtk.Button(label="更新…", valign=Gtk.Align.CENTER)
+        self.update_button.connect(
+            "clicked", lambda _: self.confirm_download(self.catalog[self.model_index], self.model_index))
+        self.update_row.add_suffix(self.update_button)
+        group.add(self.update_row)
         self.update_local_rows()
 
         self.download_row = Adw.ActionRow(visible=False)
@@ -357,12 +378,15 @@ class SettingsWindow(Adw.ApplicationWindow):
         self.local_file_row.set_subtitle(GLib.markup_escape_text(subtitle))
         self.local_file_row.set_visible(local)
         self.local_right_context_row.set_visible(local)
+        self.update_row.set_visible(self.model_index < len(self.catalog) and outdated(self.catalog[self.model_index]))
 
     @staticmethod
     def model_label(model):
         location = installed_location(model)
         if location is None:
             status = f"ダウンロード {model['size'] / 1_000_000:.0f} MB"
+        elif outdated(model):
+            status = "ダウンロード済み・更新あり"
         elif location == user_models_directory():
             status = "ダウンロード済み"
         else:
@@ -480,11 +504,15 @@ class SettingsWindow(Adw.ApplicationWindow):
         self.download_row.set_visible(False)
         self.rows["zenzaiModel"].set_sensitive(True)
         if error is None:
+            updated = index == self.model_index
             self.model_index = index
             self.select_model_quietly(index)
             self.set_value("zenzaiModel", model["id"])
             self.update_local_rows()
-            self.toasts.add_toast(Adw.Toast(title=f"{model['label']} を使います (次の入力から)"))
+            # The engine keeps the file it loaded; a new file at the same path needs a restart.
+            title = (f"{model['label']} を更新しました。ログインし直すか ibus restart を実行すると切り替わります"
+                     if updated else f"{model['label']} を使います (次の入力から)")
+            self.toasts.add_toast(Adw.Toast(title=title))
         else:
             self.select_model_quietly(self.model_index)
             message = "キャンセルしました" if isinstance(error, DownloadCancelled) else f"ダウンロードできませんでした: {error}"
@@ -584,10 +612,28 @@ def self_test(application):
     assert "ダウンロード済み" in window.model_list.get_string(ids.index("zenz-v3.2-xsmall"))
     models.set_selected(ids.index("zenz-v3.2-xsmall"))
     assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
-    window.confirm_download = lambda model, index: None
+    confirmed = []
+    window.confirm_download = lambda model, index: confirmed.append(model["id"])
     models.set_selected(ids.index("zenz-v3.1-small"))
     assert models.get_selected() == ids.index("zenz-v3.2-xsmall"), "a missing model must not be selected yet"
     assert json.loads(config_file().read_text(encoding="utf-8"))["zenzaiModel"] == "zenz-v3.2-xsmall"
+    assert confirmed == ["zenz-v3.1-small"], confirmed
+    # A download whose SOURCE records another SHA-256 than the catalog's is
+    # outdated: the list says so and the update row offers the new file.
+    xsmall = window.catalog[ids.index("zenz-v3.2-xsmall")]
+    assert not outdated(xsmall) and not window.update_row.get_visible()
+    (fake / "SOURCE").write_text(model_source(xsmall), encoding="utf-8")
+    window.select_model_quietly(window.model_index)
+    assert not outdated(xsmall) and not window.update_row.get_visible()
+    (fake / "SOURCE").write_text(model_source({**xsmall, "sha256": "0" * 64}), encoding="utf-8")
+    window.select_model_quietly(window.model_index)
+    assert outdated(xsmall) and "更新あり" in window.model_list.get_string(ids.index("zenz-v3.2-xsmall"))
+    assert window.update_row.get_visible()
+    window.update_button.emit("clicked")
+    assert confirmed[-1] == "zenz-v3.2-xsmall", confirmed
+    (fake / "SOURCE").unlink()
+    window.select_model_quietly(window.model_index)
+    assert not window.update_row.get_visible()
     # Entries download from Hugging Face unless they give their own "url".
     for model in window.catalog:
         url = model_url(model)

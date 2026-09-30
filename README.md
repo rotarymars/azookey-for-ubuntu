@@ -82,7 +82,9 @@ same window opens from **⋮ → Preferences** next to azooKey in
 zenz-v3.2-small comes with the package. Choosing another model (the lighter
 zenz-v3.2-xsmall, the older v3.1 models, or zenz-v3.2-small 追加学習版, a
 fine-tune of zenz-v3.2-small) downloads it into
-`~/.local/share/ibus-azookey/models` after asking. **自分のモデル** at the end
+`~/.local/share/ibus-azookey/models` after asking. When the list has a newer
+version of a downloaded model, it says 更新あり and an 更新… button replaces the
+file; the engine switches after `ibus restart` or the next login. **自分のモデル** at the end
 of the list uses a GGUF file of your own instead, such as a zenz model you
 fine-tuned.
 Turn on "カーソルの後ろの文章も渡す" only for a model based on zenz-v3.2.
