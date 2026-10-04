@@ -24,9 +24,9 @@
   {
     "id": "zenz-v3.2-small-rotarymars",
     "label": "zenz-v3.2-small 追加学習版 (rotarymars)",
-    "url": "https://github.com/rotarymars/azookey-for-ubuntu/releases/download/model-zenz-v3.2-small-rotarymars-2/zenz-v3.2-small-rotarymars-2.gguf",
-    "file": "zenz-v3.2-small-rotarymars-2.gguf",
-    "sha256": "071f104b3d31465a273aa687f21dd38862799a0a421a6a412bb0e929097514f3",
+    "url": "https://github.com/rotarymars/azookey-for-ubuntu/releases/download/model-zenz-v3.2-small-rotarymars-3/zenz-v3.2-small-rotarymars-3.gguf",
+    "file": "zenz-v3.2-small-rotarymars-3.gguf",
+    "sha256": "97d6a483d65e17c6c91456abb1d118d913cb9489c4aab49ccea24acb84dc49bb",
     "size": 73871776,
     "license": "CC-BY-SA-4.0",
     "rightContext": true,
