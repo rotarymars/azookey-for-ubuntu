@@ -52,6 +52,11 @@ extension Config {
         public var value: Bool { Config.settings.typoCorrection }
     }
 
+    public struct TypoCorrectionBeamSize {
+        public init() {}
+        public var value: Int { Config.settings.typoCorrectionBeamSize }
+    }
+
     /// A debug-only feature of azooKey-Desktop that is not offered on Linux.
     public struct DebugPredictiveTyping {
         public init() {}

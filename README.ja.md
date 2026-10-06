@@ -78,7 +78,8 @@ JIS キーボードでは、英数・無変換で直接入力に、かな・変�
   プロフィール（例：エンジニア）、カーソル前後の文章の利用
 - **入力ミスを補正する**：ローマ字の小さな打ち間違い（余計なキー、隣のキー、入れ替わった
   キー）を Zenzai のモデルが見つけて、直した変換を候補に出します。打ったとおりより
-  はっきり確からしいときは 1 番目、そうでなければ 2 番目です（ローマ字入力のみ）
+  はっきり確からしいときは 1 番目、そうでなければ 2 番目です（ローマ字入力のみ）。
+  探索幅を広げると、入力の速さと引き換えに多くの打ち間違いを見つけます
 
 パッケージには zenz-v3.2-small が入っています。ほかのモデル（軽量な zenz-v3.2-xsmall や
 旧版の v3.1、zenz-v3.2-small を追加学習した「zenz-v3.2-small 追加学習版」）を選ぶと、
@@ -105,6 +106,7 @@ GGUF ファイルを選んで使えます。「カーソルの後ろの文章も
 | `zenzaiProfile` | `""` | 変換の傾向を伝える短いプロフィール |
 | `useSurroundingText` | `true` | カーソル前後の文章を Zenzai の文脈に使う |
 | `typoCorrection` | `true` | ローマ字の打ち間違いを直した変換を候補に出す（Zenzai が必要） |
+| `typoCorrectionBeamSize` | `2` | 入力ミスの探索幅（1〜8）。大きいほど多くの打ち間違いを見つけるが、入力が遅くなる |
 | `inputStyle` | `roman` | `roman`、`azik`、`kanaUS`、`kanaJIS` |
 | `punctuationStyle` | `kutenAndToten` | `kutenAndToten` 。、 / `kutenAndComma` 。， / `periodAndToten` ．、 / `periodAndComma` ．， |
 | `typeBackSlash` | `true` | バックスラッシュキーで \ を入力（`false` なら ¥） |

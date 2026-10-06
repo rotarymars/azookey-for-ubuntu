@@ -98,8 +98,8 @@ func typeThroughSession() {
     settings.zenzaiInferenceLimit = inferenceLimit
     settings.liveConversion = liveConversion
     settings.typoCorrection = typo
+    settings.typoCorrectionBeamSize = typoBeam ?? settings.typoCorrectionBeamSize
     Config.settings = settings
-    TypoCorrector.default.configuration.beamSize = typoBeam ?? TypoCorrector.default.configuration.beamSize
     let session = ConverterHost().makeSession()
     for input in inputs {
         var latencies: [Double] = []

@@ -592,8 +592,11 @@ public final class SegmentsManager {
         )
         let clock = ContinuousClock()
         let start = clock.now
+        var configuration = TypoCorrector.Configuration()
+        configuration.beamSize = Config.TypoCorrectionBeamSize().value
         let result = try? self.kanaKanjiConverter.withSession(sessionID) {
-            TypoCorrector.default.correct(self.composingText, leftSideContext: leftSideContext ?? "", converter: self.kanaKanjiConverter, options: options)
+            TypoCorrector(configuration: configuration)
+                .correct(self.composingText, leftSideContext: leftSideContext ?? "", converter: self.kanaKanjiConverter, options: options)
         }
         let searched = clock.now
         var report = TypoCorrectionReport(result: result, searchTime: searched - start, conversionTime: .zero)

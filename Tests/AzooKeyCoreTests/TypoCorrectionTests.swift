@@ -149,4 +149,14 @@ import Testing
         let saved = try JSONSerialization.jsonObject(with: JSONEncoder().encode(off)) as? [String: Any]
         #expect(saved?["typoCorrection"] as? Bool == false)
     }
+
+    @Test func searchBreadthIsASettingWithinLimits() throws {
+        #expect(Settings().typoCorrectionBeamSize == TypoCorrector.Configuration().beamSize)
+        let wide = try JSONDecoder().decode(Settings.self, from: Data(#"{"typoCorrectionBeamSize": 6}"#.utf8))
+        #expect(wide.typoCorrectionBeamSize == 6)
+        let tooWide = try JSONDecoder().decode(Settings.self, from: Data(#"{"typoCorrectionBeamSize": 99}"#.utf8))
+        #expect(tooWide.typoCorrectionBeamSize == 8)
+        let zero = try JSONDecoder().decode(Settings.self, from: Data(#"{"typoCorrectionBeamSize": 0}"#.utf8))
+        #expect(zero.typoCorrectionBeamSize == 1)
+    }
 }

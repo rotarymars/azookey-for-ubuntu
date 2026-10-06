@@ -75,6 +75,9 @@ public struct Settings: Equatable, Sendable {
     /// a small typo (an extra key, a wrong neighboring key, two keys swapped).
     /// Needs Zenzai, whose model judges the typos.
     public var typoCorrection = true
+    /// How many readings the typo search keeps at each key (1-8): wider finds
+    /// more typos and takes longer per keystroke.
+    public var typoCorrectionBeamSize = 2
     public var inputStyle: InputStyle = .roman
     public var punctuationStyle: PunctuationStyle = .kutenAndToten
     /// Backslash key types "\" (on) or "¥" (off) in Japanese mode.
@@ -90,7 +93,7 @@ public struct Settings: Equatable, Sendable {
 extension Settings: Codable {
     enum CodingKeys: String, CodingKey {
         case learning, liveConversion, zenzaiEnabled, zenzaiModel, zenzaiLocalModelPath, zenzaiLocalModelRightContext
-        case zenzaiInferenceLimit, zenzaiProfile, typoCorrection
+        case zenzaiInferenceLimit, zenzaiProfile, typoCorrection, typoCorrectionBeamSize
         case useSurroundingText, inputStyle, punctuationStyle, typeBackSlash, typeHalfSpace, candidatePageSize
     }
 
@@ -109,6 +112,7 @@ extension Settings: Codable {
         self.zenzaiInferenceLimit = max(1, min(value(.zenzaiInferenceLimit, defaults.zenzaiInferenceLimit), 50))
         self.zenzaiProfile = value(.zenzaiProfile, defaults.zenzaiProfile)
         self.typoCorrection = value(.typoCorrection, defaults.typoCorrection)
+        self.typoCorrectionBeamSize = max(1, min(value(.typoCorrectionBeamSize, defaults.typoCorrectionBeamSize), 8))
         self.useSurroundingText = value(.useSurroundingText, defaults.useSurroundingText)
         self.inputStyle = value(.inputStyle, defaults.inputStyle)
         self.punctuationStyle = value(.punctuationStyle, defaults.punctuationStyle)

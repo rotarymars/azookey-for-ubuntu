@@ -279,6 +279,9 @@ class SettingsWindow(Adw.ApplicationWindow):
         zenzai.add(self.switch_row(
             "typoCorrection", "入力ミスを補正する",
             "余計なキー・隣のキー・入れ替わったキーを見つけて、直した変換を候補に出します (ローマ字入力のみ)"))
+        zenzai.add(self.spin_row(
+            "typoCorrectionBeamSize", "入力ミスの探索幅", 1, 8,
+            "大きいほど多くの打ち間違いを見つけますが、入力が遅くなります (既定: 2)"))
         page.add(zenzai)
 
         about = Adw.PreferencesGroup(title="このソフトウェアについて")
@@ -601,6 +604,8 @@ def self_test(application):
     assert saved["learning"] == "nothing", saved
     assert saved["zenzaiInferenceLimit"] == 3, saved
     assert saved["typoCorrection"] == window.rows["typoCorrection"].get_active(), saved
+    window.rows["typoCorrectionBeamSize"].set_value(4)
+    assert json.loads(config_file().read_text(encoding="utf-8"))["typoCorrectionBeamSize"] == 4
     SettingsWindow.request_learning_reset()
     assert reset_request_file().exists()
 

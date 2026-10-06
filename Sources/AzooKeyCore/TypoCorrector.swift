@@ -14,9 +14,15 @@ import KanaKanjiConverterModuleWithDefaultDictionary
 public struct TypoCorrector {
     public struct Configuration: Sendable, Equatable {
         public init() {}
-        /// Beam width of the upstream search. Its cost grows with the width;
-        /// 2 finds as many single typos as 4 (see `correct`).
+        /// Beam width of the upstream search (the `typoCorrectionBeamSize`
+        /// setting). Its cost grows with the width; 2 finds about as many
+        /// single typos as 4 (see `correct`).
         public var beamSize = 2
+        /// Beam width, if wider, when the typed input leaves romaji that is no kana
+        /// ("していsまっても"), which is nearly always a typo. A swap such as
+        /// "is" for "si" consumes two keys at once and falls out of a narrower
+        /// beam, which then finds no correction.
+        public var strandedRomajiBeamSize = 4
         /// Channel cost of a key pressed twice. Upstream charges 3 per key
         /// unit for skipping an extra key next to the previous one.
         public var repeatedKeyCost: Float = 3.0
@@ -92,10 +98,6 @@ public struct TypoCorrector {
         self.configuration = configuration
     }
 
-    /// The corrector the input sessions use (azookey-cli changes it to
-    /// compare settings). Only touched from the main thread.
-    nonisolated(unsafe) public static var `default` = TypoCorrector()
-
     /// zenz reads its input up to this tag and the conversion after it, so the
     /// model's probability of the tag is that of the input ending there.
     static let endOfInput: Character = "\u{EE01}"
@@ -148,27 +150,36 @@ public struct TypoCorrector {
         // `.roman2kana` makes the corrector use its Mac keyboard layout, which
         // matches a hardware keyboard, instead of the iOS one.
         let style: InputStyle = .roman2kana
-        let beamSize = max(1, configuration.beamSize)
-        var text = ComposingText()
-        text.insertAtCursorPosition(keys.map { .init(character: $0, inputStyle: .mapped(id: .defaultRomanToKana)) })
-        // nBest only trims the output; beam + 1 keeps the typed input in it.
-        var hypotheses = converter.experimentalRequestTypoCorrection(
-            leftSideContext: leftSideContext,
-            composingText: text,
-            options: options,
-            inputStyle: style,
-            config: .init(languageModel: .zenz, beamSize: beamSize, nBest: beamSize + 1)
-        ).map {
-            Hypothesis(
-                input: $0.correctedInput,
-                reading: Self.reading(of: Array($0.correctedInput), isFinal: isFinal),
-                score: $0.score,
-                lmScore: $0.lmScore,
-                channelCost: $0.channelCost
-            )
+        func search(beamSize: Int) -> [Hypothesis] {
+            var text = ComposingText()
+            text.insertAtCursorPosition(keys.map { .init(character: $0, inputStyle: .mapped(id: .defaultRomanToKana)) })
+            // nBest only trims the output; beam + 1 keeps the typed input in it.
+            return converter.experimentalRequestTypoCorrection(
+                leftSideContext: leftSideContext,
+                composingText: text,
+                options: options,
+                inputStyle: style,
+                config: .init(languageModel: .zenz, beamSize: beamSize, nBest: beamSize + 1)
+            ).map {
+                Hypothesis(
+                    input: $0.correctedInput,
+                    reading: Self.reading(of: Array($0.correctedInput), isFinal: isFinal),
+                    score: $0.score,
+                    lmScore: $0.lmScore,
+                    channelCost: $0.channelCost
+                )
+            }
         }
-        guard let original = hypotheses.first(where: { $0.input == typed }) else {
+        var hypotheses = search(beamSize: max(1, configuration.beamSize))
+        guard var original = hypotheses.first(where: { $0.input == typed }) else {
             return nil
+        }
+        if original.reading.contains(where: { $0.isASCII && $0.isLetter }), configuration.strandedRomajiBeamSize > configuration.beamSize {
+            hypotheses = search(beamSize: configuration.strandedRomajiBeamSize)
+            guard let wider = hypotheses.first(where: { $0.input == typed }) else {
+                return nil
+            }
+            original = wider
         }
 
         /// log P(reading), optionally followed by the end of the input. Given
