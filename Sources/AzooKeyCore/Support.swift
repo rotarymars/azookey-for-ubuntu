@@ -36,16 +36,3 @@ enum CompiledUserDictionaryStore {
         memoryDirectoryURL.appendingPathComponent("user_dictionary", isDirectory: true)
     }
 }
-
-/// azooKey-Desktop can download an n-gram model for an experimental typo
-/// correction debug feature. That feature is not offered here, so
-/// SegmentsManager always sees the weights as missing.
-enum DebugTypoCorrectionWeights {
-    static func modelDirectoryURL(azooKeyApplicationSupportDirectoryURL: URL) -> URL {
-        azooKeyApplicationSupportDirectoryURL.appendingPathComponent("downloaded/input_n5_lm_v1", isDirectory: true)
-    }
-
-    static func hasRequiredWeightFiles(modelDirectoryURL: URL) -> Bool {
-        false
-    }
-}

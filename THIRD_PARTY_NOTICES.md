@@ -5,7 +5,7 @@ endorsed by the azooKey project. It builds on the following components.
 
 | Component | Used as | License |
 |---|---|---|
-| [AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter) | conversion engine (linked) | MIT |
+| [AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter) | conversion engine (linked); its keyboard layout table for typo correction is copied into `Sources/AzooKeyCore/TypoCorrector.swift` | MIT |
 | [azooKey-Desktop](https://github.com/azooKey/azooKey-Desktop) | input logic adapted in `Sources/AzooKeyCore/Upstream` and `InputSession.swift` | MIT |
 | [azooKey_dictionary_storage](https://github.com/azooKey/azooKey_dictionary_storage) | system dictionary (installed data) | Apache-2.0 |
 | [azooKey_emoji_dictionary_storage](https://github.com/azooKey/azooKey_emoji_dictionary_storage) | emoji candidates (installed data) | no license file; see below |

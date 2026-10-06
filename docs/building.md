@@ -174,6 +174,19 @@ LD_LIBRARY_PATH=build/lib .build/release/azookey-cli --session --delay 50 --limi
     --model build/models/zenz-v3.2-small/ggml-model-Q5_K_M.gguf kyouhaiitenkidesune
 ```
 
+Typo correction (`Sources/AzooKeyCore/TypoCorrector.swift`) scores the input
+with the same model after each conversion. With zenz-v3.2-small it adds about
+5 ms to an average keystroke and about 10 ms to the slowest keystroke of an
+input. Space usually costs a few ms more, up to about 100 ms when a correction
+near the end of the input is scored as ending it. `--typo` turns it on in
+`--session` mode (it is off otherwise, for comparison) and prints what it
+found; a space in the text presses Space:
+
+```sh
+LD_LIBRARY_PATH=build/lib .build/release/azookey-cli --session --live --typo \
+    --model build/models/zenz-v3.2-small/ggml-model-Q5_K_M.gguf "senseii " "gakkouniiiku "
+```
+
 ## Notes for contributors
 
 - **Why Swift:** azooKey's conversion engine and its macOS input logic are

@@ -1,6 +1,16 @@
 import AzooKeyCore
 import Foundation
+import KanaKanjiConverterModuleWithDefaultDictionary
 import Testing
+
+/// A zenz model fetched by `make` into build/models, for the tests that need
+/// Zenzai; they are skipped without one.
+private let zenzTestModel: URL? = {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    return ["zenz-v3.2-xsmall", "zenz-v3.2-small"]
+        .map { root.appendingPathComponent("build/models/\($0)/\(Paths.modelFileName)") }
+        .first { FileManager.default.fileExists(atPath: $0.path) }
+}()
 
 /// Drives an `InputSession` with key events the way the IBus engine does.
 @MainActor
@@ -215,6 +225,88 @@ final class Typist {
         typist.type("kisha")
         typist.press(Keysym.space)
         #expect(typist.preedit == "記者")
+    }
+
+    // MARK: Typo correction
+
+    func makeZenzaiHost(_ configure: (inout Settings) -> Void = { _ in }) -> ConverterHost {
+        makeHost {
+            $0.zenzaiEnabled = true
+            $0.zenzaiModel = ModelCatalog.localModelID
+            $0.zenzaiLocalModelPath = zenzTestModel?.path ?? ""
+            $0.zenzaiInferenceLimit = 1
+            configure(&$0)
+        }
+    }
+
+    @Test(.enabled(if: zenzTestModel != nil, "needs a zenz model in build/models"))
+    func typoCorrectionComesFirstAndConsumesTheTypo() {
+        let typist = Typist(makeZenzaiHost { $0.liveConversion = true }.makeSession())
+        typist.type("gakkouniiiku")
+        // Live conversion already shows what was meant.
+        #expect(typist.preedit == "学校に行く")
+        typist.press(Keysym.space)
+        #expect(typist.candidates.first == "学校に行く")
+        typist.press(Keysym.returnKey)
+        #expect(typist.committed == "学校に行く")
+        // The extra い went with it.
+        #expect(typist.session.snapshot() == .empty)
+    }
+
+    @Test(.enabled(if: zenzTestModel != nil, "needs a zenz model in build/models"))
+    func typoCorrectionLeavesCorrectInputAlone() throws {
+        let typist = Typist(makeZenzaiHost().makeSession())
+        typist.type("gakkouniiku")
+        typist.press(Keysym.space)
+        let report = try #require(typist.session.typoCorrectionReport)
+        #expect(report.result?.correction == nil)
+        #expect(report.candidateText == nil)
+        #expect(typist.preedit == "学校に行く")
+    }
+
+    @Test(.enabled(if: zenzTestModel != nil, "needs a zenz model in build/models"))
+    func typoCorrectionCanBeTurnedOff() {
+        let typist = Typist(makeZenzaiHost {
+            $0.liveConversion = true
+            $0.typoCorrection = false
+        }.makeSession())
+        typist.type("gakkouniiiku")
+        #expect(typist.preedit != "学校に行く")
+        #expect(typist.session.typoCorrectionReport == nil)
+    }
+
+    @Test func noTypoCorrectionWithoutZenzai() {
+        let typist = Typist(makeHost { $0.liveConversion = true }.makeSession())
+        typist.type("gakkouniiiku")
+        #expect(typist.session.typoCorrectionReport == nil)
+    }
+
+    @Test(.enabled(if: zenzTestModel != nil, "needs a zenz model in build/models"))
+    func choosingTheCorrectionLearnsTheCorrectedReading() throws {
+        let host = makeZenzaiHost()
+        let model = try #require(zenzTestModel)
+        let manager = SegmentsManager(
+            kanaKanjiConverter: host.converter,
+            applicationDirectoryURL: Paths.memoryDirectory,
+            containerURL: nil,
+            context: .init(
+                useZenzai: true,
+                resourcesDirectoryURL: model.deletingLastPathComponent(),
+                zenzaiWeightURL: model,
+                typoCorrectionSessionID: host.converter.createSession()
+            )
+        )
+        let roman = InputStyle.mapped(id: .defaultRomanToKana)
+        manager.insertAtCursorPosition("gakkouniiiku", inputStyle: roman)
+        manager.insertCompositionSeparator(inputStyle: roman, skipUpdate: true)
+        manager.update(requestRichCandidates: true)
+        manager.requestSelectingRow(0)
+        let candidate = try #require(manager.selectedCandidate)
+        #expect(candidate.text == "学校に行く")
+        // Committing learns `candidate.data`: the corrected reading, not the typo.
+        #expect(candidate.data.map(\.ruby).joined() == "ガッコウニイク")
+        manager.prefixCandidateCommited(candidate, leftSideContext: "")
+        #expect(manager.isEmpty)
     }
 
     // MARK: Models

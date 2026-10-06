@@ -276,6 +276,9 @@ class SettingsWindow(Adw.ApplicationWindow):
         zenzai.add(self.entry_row("zenzaiProfile", "プロフィール (例: エンジニア/Swift開発者)"))
         zenzai.add(self.switch_row(
             "useSurroundingText", "前後の文章を文脈に使う", "カーソルの前後にある文章を変換の手がかりにします"))
+        zenzai.add(self.switch_row(
+            "typoCorrection", "入力ミスを補正する",
+            "余計なキー・隣のキー・入れ替わったキーを見つけて、直した変換を候補に出します (ローマ字入力のみ)"))
         page.add(zenzai)
 
         about = Adw.PreferencesGroup(title="このソフトウェアについて")
@@ -593,9 +596,11 @@ def self_test(application):
     window.rows["learning"].set_selected(2)
     window.rows["liveConversion"].set_active(not window.rows["liveConversion"].get_active())
     window.rows["zenzaiInferenceLimit"].set_value(3)
+    window.rows["typoCorrection"].set_active(not window.rows["typoCorrection"].get_active())
     saved = json.loads(config_file().read_text(encoding="utf-8"))
     assert saved["learning"] == "nothing", saved
     assert saved["zenzaiInferenceLimit"] == 3, saved
+    assert saved["typoCorrection"] == window.rows["typoCorrection"].get_active(), saved
     SettingsWindow.request_learning_reset()
     assert reset_request_file().exists()
 

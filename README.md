@@ -78,6 +78,10 @@ same window opens from **⋮ → Preferences** next to azooKey in
 - **Zenzai**: on or off, the model, accuracy versus speed, a short
   self-description (e.g. エンジニア) that steers conversions, and use of the text
   around the cursor
+- **Typo correction** (入力ミスを補正する): when romaji has a small typo (an extra
+  key, a wrong key next to the right one, or two keys swapped), Zenzai's model
+  finds what you meant and offers its conversion: first when it is clearly more
+  likely than what you typed, otherwise second. Romaji input only
 
 zenz-v3.2-small comes with the package. Choosing another model (the lighter
 zenz-v3.2-xsmall, the older v3.1 models, or zenz-v3.2-small 追加学習版, a
@@ -108,6 +112,7 @@ the defaults below.
 | `zenzaiInferenceLimit` | `5` | higher is slower but can be more accurate |
 | `zenzaiProfile` | `""` | a short self-description that steers conversion |
 | `useSurroundingText` | `true` | give Zenzai the text around the cursor as context |
+| `typoCorrection` | `true` | offer the conversion of what you meant when romaji has a small typo (needs Zenzai) |
 | `inputStyle` | `roman` | `roman`, `azik`, `kanaUS`, `kanaJIS` |
 | `punctuationStyle` | `kutenAndToten` | `kutenAndToten` 。、 / `kutenAndComma` 。， / `periodAndToten` ．、 / `periodAndComma` ．， |
 | `typeBackSlash` | `true` | the backslash key types \ (`false`: ¥) |

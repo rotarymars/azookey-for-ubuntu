@@ -71,6 +71,10 @@ public struct Settings: Equatable, Sendable {
     public var zenzaiProfile = ""
     /// Give Zenzai the text around the cursor as context.
     public var useSurroundingText = true
+    /// Offer the conversion of what was probably meant when romaji input has
+    /// a small typo (an extra key, a wrong neighboring key, two keys swapped).
+    /// Needs Zenzai, whose model judges the typos.
+    public var typoCorrection = true
     public var inputStyle: InputStyle = .roman
     public var punctuationStyle: PunctuationStyle = .kutenAndToten
     /// Backslash key types "\" (on) or "¥" (off) in Japanese mode.
@@ -86,7 +90,7 @@ public struct Settings: Equatable, Sendable {
 extension Settings: Codable {
     enum CodingKeys: String, CodingKey {
         case learning, liveConversion, zenzaiEnabled, zenzaiModel, zenzaiLocalModelPath, zenzaiLocalModelRightContext
-        case zenzaiInferenceLimit, zenzaiProfile
+        case zenzaiInferenceLimit, zenzaiProfile, typoCorrection
         case useSurroundingText, inputStyle, punctuationStyle, typeBackSlash, typeHalfSpace, candidatePageSize
     }
 
@@ -104,6 +108,7 @@ extension Settings: Codable {
         self.zenzaiLocalModelRightContext = value(.zenzaiLocalModelRightContext, defaults.zenzaiLocalModelRightContext)
         self.zenzaiInferenceLimit = max(1, min(value(.zenzaiInferenceLimit, defaults.zenzaiInferenceLimit), 50))
         self.zenzaiProfile = value(.zenzaiProfile, defaults.zenzaiProfile)
+        self.typoCorrection = value(.typoCorrection, defaults.typoCorrection)
         self.useSurroundingText = value(.useSurroundingText, defaults.useSurroundingText)
         self.inputStyle = value(.inputStyle, defaults.inputStyle)
         self.punctuationStyle = value(.punctuationStyle, defaults.punctuationStyle)

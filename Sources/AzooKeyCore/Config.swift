@@ -47,12 +47,12 @@ extension Config {
         public var value: Value { .off }
     }
 
-    /// Debug-only features of azooKey-Desktop that are not offered on Linux.
-    public struct DebugTypoCorrection {
+    public struct TypoCorrection {
         public init() {}
-        public var value: Bool { false }
+        public var value: Bool { Config.settings.typoCorrection }
     }
 
+    /// A debug-only feature of azooKey-Desktop that is not offered on Linux.
     public struct DebugPredictiveTyping {
         public init() {}
         public var value: Bool { false }

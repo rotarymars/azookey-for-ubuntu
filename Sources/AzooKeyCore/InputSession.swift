@@ -125,6 +125,8 @@ public final class InputSession {
     public private(set) var inputLanguage: InputLanguage = .japanese
     private let host: ConverterHost
     private let sessionID: KanaKanjiConverter.ConversionSessionID
+    /// Typo correction's own session on the converter (see SegmentsManager.Context).
+    private let typoCorrectionSessionID: KanaKanjiConverter.ConversionSessionID
     private let textContext = TextContext()
     private var manager: SegmentsManager
     private var managerModel: ResolvedModel?
@@ -135,8 +137,9 @@ public final class InputSession {
     init(host: ConverterHost) {
         self.host = host
         self.sessionID = host.converter.createSession()
+        self.typoCorrectionSessionID = host.converter.createSession()
         self.managerModel = host.zenzaiModel
-        self.manager = Self.makeManager(host: host, model: managerModel)
+        self.manager = Self.makeManager(host: host, model: managerModel, typoCorrectionSessionID: typoCorrectionSessionID)
         self.manager.delegate = textContext
         Self.logModel(managerModel)
     }
@@ -145,12 +148,17 @@ public final class InputSession {
         Log.info("Zenzai model: \(model?.file.path ?? "none (dictionary only)")")
     }
 
-    /// Releases the conversion session on the shared converter.
+    /// Releases the conversion sessions on the shared converter.
     public func close() {
         host.converter.removeSession(sessionID)
+        host.converter.removeSession(typoCorrectionSessionID)
     }
 
-    private static func makeManager(host: ConverterHost, model: ResolvedModel?) -> SegmentsManager {
+    private static func makeManager(
+        host: ConverterHost,
+        model: ResolvedModel?,
+        typoCorrectionSessionID: KanaKanjiConverter.ConversionSessionID
+    ) -> SegmentsManager {
         SegmentsManager(
             kanaKanjiConverter: host.converter,
             applicationDirectoryURL: Paths.memoryDirectory,
@@ -158,7 +166,8 @@ public final class InputSession {
             context: .init(
                 useZenzai: model != nil,
                 resourcesDirectoryURL: model?.file.deletingLastPathComponent(),
-                zenzaiWeightURL: model?.file
+                zenzaiWeightURL: model?.file,
+                typoCorrectionSessionID: typoCorrectionSessionID
             )
         )
     }
@@ -174,6 +183,11 @@ public final class InputSession {
 
     public var isComposing: Bool {
         !manager.isEmpty || inputState != .none
+    }
+
+    /// What typo correction found for the last conversion, if it ran.
+    public var typoCorrectionReport: SegmentsManager.TypoCorrectionReport? {
+        manager.typoCorrectionReport
     }
 
     /// Updates the text around the cursor (without the preedit) for Zenzai.
@@ -192,7 +206,7 @@ public final class InputSession {
         let model = host.zenzaiModel
         if model != managerModel {
             managerModel = model
-            manager = Self.makeManager(host: host, model: model)
+            manager = Self.makeManager(host: host, model: model, typoCorrectionSessionID: typoCorrectionSessionID)
             manager.delegate = textContext
             Self.logModel(model)
         }
